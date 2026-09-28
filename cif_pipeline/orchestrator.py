@@ -223,6 +223,7 @@ def run_pipeline(
             normalization_trace=normalization_trace,
             doped_validation=doped_validation,
             recognition_result=recognition,
+            is_reliable=False,
         )
 
     relax_result = relax_with_mace(doped_structure, mace_model_path)
@@ -236,13 +237,20 @@ def run_pipeline(
             normalization_trace=normalization_trace,
             doped_validation=doped_validation,
             recognition_result=recognition,
+            is_reliable=False,
         )
+
+    if getattr(relax_result, "relaxation_skipped", False):
+        notes_str = f"doped structure validated; MACE relaxation was skipped (disordered occupancy preserved)"
+    else:
+        notes_str = f"doped structure validated and relaxed successfully (energy={relax_result.energy:.4f} eV)"
 
     return PipelineResult(
         cif_string=relax_result.structure.to(fmt="cif"),
         source="generated_doped",
-        notes=f"doped structure validated and relaxed successfully (energy={relax_result.energy:.4f} eV)",
+        notes=notes_str,
         normalization_trace=normalization_trace,
         doped_validation=doped_validation,
         recognition_result=recognition,
+        is_reliable=True,
     )

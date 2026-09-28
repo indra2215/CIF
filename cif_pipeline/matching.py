@@ -22,6 +22,7 @@ reduction.
 """
 
 from __future__ import annotations
+import re
 from typing import List, Optional, Tuple
 from pymatgen.core import Composition, Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
@@ -72,12 +73,15 @@ def _normalize_space_group(sg: Optional[str]) -> Optional[str]:
     # Try multiple casing/format strategies to canonicalize the symbol.
     # pymatgen's SpaceGroup is case-sensitive and uses specific notation
     # (e.g. "P2_1/c" not "P21/c"), so we try several transformations.
+    repaired_screw = re.sub(r'([A-Za-z])(\d)(\d)(?=/|$)', r'\1\2_\3', sg_compact)
     attempts = [
         sg_compact,                                          # original, whitespace-stripped
         sg_str,                                              # original with spaces (e.g. "F d -3 m" works)
         sg_compact[0].upper() + sg_compact[1:],              # first char uppercase: "pnma" -> "Pnma"
         sg_compact[0].upper() + sg_compact[1:].lower(),      # title-ish: "PNMA" -> "Pnma"
         sg_compact.title(),                                  # Python .title(): "P N M A" -> "P N M A" -> skip whitespace
+        repaired_screw,                                      # screw-axis repair: "P21/c" -> "P2_1/c"
+        repaired_screw[0].upper() + repaired_screw[1:],      # screw-axis with leading upper
         sg_str.strip(),                                      # original with leading/trailing stripped
     ]
     for attempt in attempts:
@@ -200,7 +204,16 @@ def doped_formulas_match(formula_a: str, doping_spec: DopingSpec, tol: float = 0
     if amt_dopant <= 0 or amt_host <= 0:
         return False
     site_total = amt_dopant + amt_host
-    return abs((amt_dopant / site_total) - doping_spec.dopant_fraction) <= tol
+    if abs((amt_dopant / site_total) - doping_spec.dopant_fraction) > tol:
+        return False
+
+    # Host lattice element check: ensure the compound has the expected element set
+    try:
+        expected_els = {str(el) for el in Composition(doping_spec.host_formula).elements}
+    except Exception:
+        return True
+    expected_els.add(str(doping_spec.dopant_species))
+    return {str(el) for el in comp_a.elements} == expected_els
 
 
 def structures_match(struct_a: Structure, struct_b: Structure,
@@ -267,9 +280,11 @@ def disambiguate_polymorphs(
             f"or generate fresh?",
             options,
         )
-        if choice is None or choice == options[-1]:
+        from .user_interaction import pick_option_index
+        idx = pick_option_index(choice, options)
+        if idx is None or idx == len(options) - 1 or idx >= len(shown):
             return None, matches
-        return shown[options.index(choice)], matches
+        return shown[idx], matches
 
     if len(matches) == 1:
         return matches[0], matches
@@ -295,6 +310,8 @@ def disambiguate_polymorphs(
         f"(different polymorphs).{more_note} Which one matches what you need?",
         options,
     )
-    if choice is None or choice == options[-1]:
+    from .user_interaction import pick_option_index
+    idx = pick_option_index(choice, options)
+    if idx is None or idx == len(options) - 1 or idx >= len(shown):
         return None, matches
-    return shown[options.index(choice)], matches
+    return shown[idx], matches

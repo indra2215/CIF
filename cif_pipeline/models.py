@@ -47,6 +47,7 @@ class DopingSpec:
     dopant_fraction: float
     site_index: Optional[int] = None             # which symmetry-distinct site, once parent structure is known
     co_dopants: list[DopingSpec] = field(default_factory=list)  # additional co-dopants (co-valent / multi-site)
+    space_group: Optional[str] = None
 
 
 @dataclass
@@ -134,3 +135,4 @@ class PipelineResult:
                                                                     # are ambiguous and awaiting a UI picker choice
     doped_validation: Optional[DopedStructureValidation] = None   # UI-facing: result of the doped-structure check
     recognition_result: Optional[RecognitionResult] = None        # UI-facing: Stage 0 input recognition & normalization trace
+    is_reliable: bool = True                                       # False when we returned a structure flagged as unrelaxed/untrustworthy

@@ -35,9 +35,10 @@ def resolve_parent_structure(
 ) -> Optional[Structure]:
     """Find (or generate) the undoped parent structure specified in `spec`."""
 
+    req_sg = getattr(spec, "space_group", None)
     match, _all_ext = search_external_databases(
         spec.host_formula, is_doped=False, doping_spec=None,
-        mp_api_key=mp_api_key, requested_space_group=None, ask_user=ask_user,
+        mp_api_key=mp_api_key, requested_space_group=req_sg, ask_user=ask_user,
     )
     if match:
         log.info(f"Parent '{spec.host_formula}' found in {match.source} ({match.record_id})")
@@ -45,7 +46,7 @@ def resolve_parent_structure(
 
     match, _all_int = search_internal_database(
         spec.host_formula, is_doped=False, doping_spec=None,
-        requested_space_group=None, ask_user=ask_user,
+        requested_space_group=req_sg, ask_user=ask_user,
     )
     if match:
         log.info(f"Parent '{spec.host_formula}' found internally ({match.record_id})")
@@ -87,8 +88,10 @@ def apply_doping(
     """
     from collections import defaultdict
     from pymatgen.core.periodic_table import Element
+    import copy
 
-    all_specs = [spec] + (spec.co_dopants if hasattr(spec, "co_dopants") and spec.co_dopants else [])
+    spec_copy = copy.deepcopy(spec)
+    all_specs = [spec_copy] + (spec_copy.co_dopants if hasattr(spec_copy, "co_dopants") and spec_copy.co_dopants else [])
     doped_structure = parent_structure.copy()
 
     # Step 1: Validate element symbols and resolve site index for each dopant
@@ -135,11 +138,13 @@ def apply_doping(
                     f"'{s.dopant_species}' substitute onto?",
                     options,
                 )
-                if choice is None:
+                from .user_interaction import pick_option_index
+                idx = pick_option_index(choice, options)
+                if idx is None or idx >= len(candidates):
                     s.site_index = candidates[0]
-                    log.warning(f"No site choice given for {s.dopant_species} - defaulting to site {candidates[0]}")
+                    log.warning(f"No valid site choice given for {s.dopant_species} - defaulting to site {candidates[0]}")
                 else:
-                    s.site_index = candidates[options.index(choice)]
+                    s.site_index = candidates[idx]
 
     # Step 2: Group dopants by site index to compute composite fractional occupancies
     sites_map = defaultdict(list)

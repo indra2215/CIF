@@ -44,16 +44,17 @@ def check_mesp_and_relaxation(
     if not cif_string or not cif_string.strip():
         return {"error": "Empty CIF string provided", "is_relaxed": False}
 
-    # Default thresholds for MACE-MP-0 float64
+    # Thresholds for MACE-MP-0 float64
     FMAX_THRESHOLD = 0.05   # eV/Angstrom
-    ENERGY_THRESHOLD = -0.5  # eV/atom (typical bound ground-state)
+    ENERGY_THRESHOLD = 0.0  # eV/atom
 
-    actual_fmax = fmax if fmax is not None else 0.018  # default converged value if not passed
-    actual_energy = energy_per_atom if energy_per_atom is not None else -5.842
-
-    is_force_converged = actual_fmax < FMAX_THRESHOLD
-    is_energy_favorable = actual_energy < 0.0
-    is_relaxed = is_force_converged and is_energy_favorable
+    # Never invent a convergence verdict: without measured inputs we cannot say
+    if fmax is None or energy_per_atom is None:
+        is_relaxed = False
+        relaxation_state = "UNKNOWN (no relaxation data supplied)"
+    else:
+        is_relaxed = (fmax < FMAX_THRESHOLD) and (energy_per_atom < ENERGY_THRESHOLD)
+        relaxation_state = "CONVERGED" if is_relaxed else "ACTIVE / UNCONVERGED"
 
     atomic_charges = []
     bvs_ok = True
@@ -64,7 +65,12 @@ def check_mesp_and_relaxation(
         try:
             from pymatgen.io.cif import CifParser
             parser = CifParser(io.StringIO(cif_string))
-            structs = parser.get_structures(primitive=False)
+            # Use non-deprecated parse_structures
+            try:
+                structs = parser.parse_structures(primitive=False)
+            except AttributeError:
+                structs = parser.get_structures(primitive=False)
+
             if structs:
                 struct = structs[0]
                 
@@ -99,17 +105,9 @@ def check_mesp_and_relaxation(
         except Exception as e:
             log.warning(f"pymatgen MESP parsing note: {e}")
 
-    if not atomic_charges:
-        # Fallback charges
-        atomic_charges = [
-            {"site_index": 1, "element": "Cat", "formal_charge": +2.0, "mesp_pot_eV": +2.90, "coords": [0, 0, 0]},
-            {"site_index": 2, "element": "An", "formal_charge": -2.0, "mesp_pot_eV": -3.10, "coords": [0.5, 0.5, 0.5]},
-        ]
-        net_charge = 0.0
-
     pots = [a["mesp_pot_eV"] for a in atomic_charges]
-    min_pot = min(pots) if pots else -2.5
-    max_pot = max(pots) if pots else 2.5
+    min_pot = min(pots) if pots else 0.0
+    max_pot = max(pots) if pots else 0.0
 
     # Generate reproducible Python validation script
     py_script = f'''"""
@@ -125,14 +123,12 @@ CIF_DATA = """{cif_string[:300]}... [truncated]"""
 
 def validate():
     parser = CifParser(io.StringIO(CIF_DATA))
-    struct = parser.get_structures(primitive=False)[0]
+    struct = parser.parse_structures(primitive=False)[0]
     sga = SpacegroupAnalyzer(struct)
     
     print(f"Space Group: {{sga.get_space_group_symbol()}} (#{{sga.get_space_group_number()}})")
     print(f"Formula: {{struct.composition.reduced_formula}}")
     print(f"Volume: {{struct.volume:.3f}} A^3")
-    print(f"Relaxed Energy: {actual_energy:.4f} eV/atom")
-    print(f"Max Force residual: {actual_fmax:.4f} eV/A (Threshold: < {FMAX_THRESHOLD} eV/A)")
     print(f"Convergence: {'PASSED' if is_relaxed else 'UNCONVERGED'}")
 
 if __name__ == "__main__":
@@ -140,11 +136,12 @@ if __name__ == "__main__":
 '''
 
     return {
-        "success": True,
+        "success": bool(atomic_charges),
         "is_relaxed": is_relaxed,
-        "relaxation_status": "CONVERGED" if is_relaxed else "ACTIVE / UNCONVERGED",
-        "energy_per_atom_eV": round(actual_energy, 4),
-        "fmax_eV_per_angstrom": round(actual_fmax, 4),
+        "relaxation_status": relaxation_state,
+        "energy_per_atom_eV": round(energy_per_atom, 4) if energy_per_atom is not None else None,
+        "fmax_eV_per_angstrom": round(fmax, 4) if fmax is not None else None,
+        "data_source": "measured" if (fmax is not None and energy_per_atom is not None) else "unavailable",
         "fmax_threshold": FMAX_THRESHOLD,
         "energy_threshold": ENERGY_THRESHOLD,
         "charge_neutrality_delta": round(abs(net_charge), 4),
@@ -155,6 +152,6 @@ if __name__ == "__main__":
             "potential_span_eV": round(max_pot - min_pot, 3),
         },
         "atomic_charges": atomic_charges[:20],  # UI display limit
-        "bvs_status": bvs_notes,
+        "bvs_status": bvs_notes if atomic_charges else "Structure could not be parsed for valence analysis",
         "validation_script": py_script,
     }

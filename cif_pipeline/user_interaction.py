@@ -38,3 +38,13 @@ def web_form_ask_stub(question: str, options: Optional[List[str]] = None) -> Opt
     (e.g. via a websocket round-trip or a polling endpoint), return their answer.
     """
     raise NotImplementedError("Wire this to your web interface's clarification form")
+
+
+def pick_option_index(choice: Optional[str], options: Optional[List[str]]) -> Optional[int]:
+    """Safe index lookup: returns index of `choice` in `options`, or None for free text / decline / timeout."""
+    if not choice or not options:
+        return None
+    try:
+        return options.index(choice)
+    except ValueError:
+        return None

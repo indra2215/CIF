@@ -41,7 +41,10 @@ def compute_symmetry_matrix(cif_string: str, symprec: float = 0.01) -> Dict[str,
 
     try:
         parser = CifParser(io.StringIO(cif_string))
-        structures = parser.get_structures(primitive=False)
+        if hasattr(parser, "parse_structures"):
+            structures = parser.parse_structures(primitive=False)
+        else:
+            structures = parser.get_structures(primitive=False)
         if not structures:
             return _fallback_symmetry_matrix(cif_string)
 
@@ -140,6 +143,8 @@ def compute_symmetry_matrix(cif_string: str, symprec: float = 0.01) -> Dict[str,
             "direct_to_cartesian_matrix": direct_to_cart,
             "is_centrosymmetric": is_centro,
             "is_polar": is_polar,
+            "fallback": False,
+            "cell_parameters_source": "pymatgen_spacegroup_analyzer",
         }
 
     except Exception as e:
@@ -186,8 +191,17 @@ def _fallback_symmetry_matrix(cif_string: str) -> Dict[str, Any]:
             try: gamma = float(line.split()[1].split("(")[0])
             except (ValueError, IndexError): pass
 
+    import math
+    ca = math.cos(math.radians(alpha))
+    cb = math.cos(math.radians(beta))
+    cg = math.cos(math.radians(gamma))
+    vol_factor = math.sqrt(max(0.0, 1.0 - ca**2 - cb**2 - cg**2 + 2 * ca * cb * cg))
+    cell_vol = round(a * b * c * vol_factor, 3)
+
     return {
         "success": True,
+        "fallback": True,
+        "cell_parameters_source": "cif_text_regex",
         "space_group_symbol": sg_symbol,
         "space_group_number": sg_number,
         "crystal_system": "triclinic" if sg_number <= 2 else "monoclinic" if sg_number <= 15 else "orthorhombic" if sg_number <= 74 else "tetragonal" if sg_number <= 142 else "trigonal" if sg_number <= 167 else "hexagonal" if sg_number <= 194 else "cubic",
@@ -204,7 +218,7 @@ def _fallback_symmetry_matrix(cif_string: str) -> Dict[str, Any]:
         "cell_parameters": {
             "a": a, "b": b, "c": c,
             "alpha": alpha, "beta": beta, "gamma": gamma,
-            "volume": round(a * b * c, 3)
+            "volume": cell_vol,
         },
         "metric_tensor": [
             [round(a*a, 4), 0.0, 0.0],

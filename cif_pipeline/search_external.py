@@ -93,10 +93,11 @@ def _query_materials_project(formula: str, api_key: str) -> List[SearchMatch]:
         matches = []
         stripped = formula.strip()
         with MPRester(api_key) as mpr:
+            summary_api = getattr(getattr(mpr, "materials", None), "summary", getattr(mpr, "summary", None))
             if stripped.lower().startswith("mp-") or stripped.lower().startswith("mvc-"):
-                docs = mpr.summary.search(material_ids=[stripped])
+                docs = summary_api.search(material_ids=[stripped])
             else:
-                docs = mpr.summary.search(formula=stripped)
+                docs = summary_api.search(formula=stripped)
 
             for doc in docs:
                 sg = None
@@ -134,30 +135,49 @@ def _query_oqmd(formula: str) -> List[SearchMatch]:
     Endpoint: http://oqmd.org/oqmdapi/formationenergy
     """
     try:
-        # OQMD API uses element_set for filtering by composition.
-        # Parse the formula to get element set for the query.
         try:
+            # OQMD API: ',' means AND (must contain all), '-' means OR (per official OQMD docs).
             comp = Composition(formula)
             elements = sorted(str(el) for el in comp.elements)
-            element_filter = f"element_set=({'-'.join(elements)})"
+            element_filter = f"element_set={','.join(elements)}"
         except Exception:
+            elements = []
             element_filter = f"composition={formula}"
 
-        resp = requests.get(
-            "http://oqmd.org/oqmdapi/formationenergy",
-            params={"filter": element_filter, "fields": "name,entry_id,spacegroup,unit_cell,sites,formationenergy", "limit": "50"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+        entries = []
+        for attempt in range(2):
+            try:
+                resp = requests.get(
+                    "http://oqmd.org/oqmdapi/formationenergy",
+                    params={"filter": element_filter, "fields": "name,entry_id,spacegroup,unit_cell,sites,formationenergy"},
+                    timeout=8,
+                )
+                if resp.status_code == 200:
+                    try:
+                        data = resp.json()
+                        entries = data.get("data", [])
+                        break
+                    except Exception:
+                        pass
+            except Exception:
+                if attempt == 0:
+                    time.sleep(0.5)
 
-        entries = data.get("data", [])
         if not entries:
             log.info(f"[OQMD] no results for '{formula}'")
             return []
 
         matches = []
         for entry in entries:
+            # OQMD filter is "must contain", not "exact": verify client-side exact element set
+            if elements:
+                try:
+                    entry_name = entry.get("name", "")
+                    if entry_name and {str(el) for el in Composition(entry_name).elements} != set(elements):
+                        continue
+                except Exception:
+                    continue
+
             entry_id = entry.get("entry_id", "")
             sg = entry.get("spacegroup", None)
 

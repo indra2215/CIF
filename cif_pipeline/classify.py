@@ -39,15 +39,19 @@ _DOPING_OF_RE = re.compile(
 )
 _ANY_DOPING_WORD_RE = re.compile(r"(?i:doped|doping)")
 
-# Regex for algebraic doping notation: La1-xSrxMnO3 + optional ", x=0.3"
+# Regex for algebraic doping notation: La1-xSrxMnO3, La(1-x)Sr(x)MnO3, La(1-x)SrxMnO3 + optional ", x=0.3"
 _ALGEBRAIC_DOPING_RE = re.compile(
-    r"([A-Z][a-z]?)1\s*[-−]\s*x\s*([A-Z][a-z]?)x",
+    r"([A-Z][a-z]?)\s*\(?\s*1\s*[-−]\s*x\s*\)?\s*([A-Z][a-z]?)\s*(?:\(\s*x\s*\)|x)",
     re.IGNORECASE,
 )
 _X_VALUE_RE = re.compile(r"x\s*=\s*(\d+(?:\.\d+)?)")
 
 # Common materials-science abbreviations -> expanded formula
 _ABBREVIATION_MAP = {
+    "CO2": "CO2",
+    "H2O": "H2O",
+    "NO2": "NO2",
+    "SO2": "SO2",
     "LSMO": "La0.7Sr0.3MnO3",
     "LCMO": "La0.7Ca0.3MnO3",
     "YBCO": "YBa2Cu3O7",
@@ -460,7 +464,7 @@ def classify_compound(
                 try:
                     import re as _re
                     tail_m = _re.search(
-                        r"[A-Z][a-z]?x\s*([A-Z].*?)(?:,|$|\s+x\s*=|\s+with)", query.raw_input
+                        r"[A-Z][a-z]?(?:\(\s*x\s*\)|x)\s*([A-Z].*?)(?:,|$|\s+x\s*=|\s+with)", query.raw_input
                     )
                     if tail_m:
                         tail = tail_m.group(1).strip()
@@ -601,7 +605,7 @@ def classify_compound(
         co_spec_list = []
         if hasattr(query, "co_dopants") and query.co_dopants:
             for item in query.co_dopants:
-                co_elem = item.get("dopant_element") or item.get("dopant_species")
+                co_elem = item.get("dopant_element") or item.get("dopant_species") or item.get("dopant")
                 co_site = item.get("host_site_species") or item.get("site")
                 co_frac = item.get("dopant_fraction") if item.get("dopant_fraction") is not None else item.get("fraction")
                 if co_elem and co_site and co_frac is not None:
@@ -611,9 +615,10 @@ def classify_compound(
                             host_site_species=str(co_site).strip(),
                             dopant_species=str(co_elem).strip(),
                             dopant_fraction=float(co_frac),
+                            space_group=query.space_group,
                         ))
-                    except Exception:
-                        pass
+                    except Exception as err:
+                        logging.getLogger("cif_pipeline.classify").warning(f"Could not parse co-dopant item {item}: {err}")
 
         spec = DopingSpec(
             host_formula=host_formula,
@@ -621,6 +626,7 @@ def classify_compound(
             dopant_species=dopant_element,
             dopant_fraction=dopant_fraction,
             co_dopants=co_spec_list,
+            space_group=query.space_group,
         )
 
     return True, spec

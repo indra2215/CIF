@@ -3,7 +3,8 @@ QA verification script — tests all sections of cif_pipeline_qa_brief (1).md.
 Run with: python test_qa_status.py
 """
 import sys
-sys.path.insert(0, r"e:/CIF-generator")
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 # Force UTF-8 output on Windows to handle unicode formula strings in print statements
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -229,3 +230,5 @@ if failed:
     for tag, s, detail in results:
         if s == FAIL:
             print(f"  ❌ [{tag}] {detail}")
+
+sys.exit(1 if failed else 0)

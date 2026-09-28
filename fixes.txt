@@ -1,0 +1,282 @@
+## Verdict first
+
+I cloned `indra2215/CIF` (single commit `5d78775`, 44 files, 10,755 lines) and ran it — not just read it: I installed `pymatgen/fastapi/uvicorn/mp-api`, booted the real FastAPI app with `TestClient`, executed the pipeline functions directly, and made live requests to COD and OQMD.
+
+**The scaffold is correct; the product is not yet correct.** The architecture is coherent and matches its own design docs (doping-vs-undoped split, "never silently narrow polymorphs", stage separation). Nothing is corrupt — `python -m compileall` is clean, the CrystaLLM integration API is right, and COD's CSV columns are right. But there are **6 bugs that produce silently wrong or fabricated scientific output**, **1 missing dependency that stops the web app from starting**, **1 authentication hole**, and a set of validators that cannot fail.
+
+---
+
+## 1. What I actually executed (evidence)
+
+| Probe | Observed result | Meaning |
+|---|---|---|
+| `python -m compileall .` | clean, 0 errors | no syntax problems anywhere |
+| `import fastapi` after `pip install -r requirements.txt` | `MISS fastapi`, `MISS uvicorn` | **web app cannot start from a clean install** |
+| `TestClient(app).get("/api/health")` | `200 {"status":"healthy", ..., "crystallm_ready": false}` | app boots and serves once deps exist |
+| `POST /api/mesp-check` (real Cu CIF, **no** `energy`/`fmax`) | `is_relaxed=True, CONVERGED, energy=-5.842, fmax=0.018` | **fabricated "converged" verdict** |
+| `POST /api/auth/login` with a wrong password | `200 {"success": true, "token": "jwt_cif_..."}` | **auth accepts anything** |
+| `hash('admin')` in two separate processes | `5006363789628106279` vs `1759973544395084468` | token signature is not stable/verifiable |
+| `GET /api/data-files/..%2Fwebapp.py` | `404` | traversal is **not** currently reachable (hardening only) |
+| Live `COD /cod/result?formula=Fe2 O3&format=csv` | `200`, 25 rows, 73-col header containing `file, formula, sg, flags, method` | **the `formula=` param exists**, and every column the code reads is real |
+| Live OQMD with the filter the code builds: `element_set=(Fe-O)` | `200`, 50 entries: `Fe, VFe, TiFe, FePd, ZnO, CuO, TiO, VO, BeO, FePt` | **wrong data returned for Fe2O3** |
+| Live OQMD with the documented form `element_set=Fe,O` | `502` | endpoint is unstable; needs retry/backoff |
+| `classify('La(1-x)SrxMnO3')` | `is_doped=False, spec=None` | algebraic notation with parentheses silently mis-classified |
+| `classify('Fe0.95O')` with the web handler | `is_doped=True`, then 4 unanswerable questions (`"Which species in None does None substitute onto?"`) | auto-picked answer poisons the whole flow |
+| `_normalize_formula_input('co2')` | **`'Co2'`** | lowercase carbon dioxide silently becomes cobalt |
+| `_normalize_formula_input('tio2'/'caco3'/'la mno3'/'La₀.₇Sr₀.₃MnO₃'/'LaMnO3(s)'/'CuSO4·5H2O'/'LSMO')` | `TiO2 / CaCO3 / LaMnO3 / La0.7Sr0.3MnO3 / LaMnO3 / CuSO4 / La0.7Sr0.3MnO3` | these all work correctly — keep them |
+| `doped_formulas_match` | `La0.7Sr0.3MnO3✓, La7Sr3Mn10O30✓, La0.6Sr0.4MnO3✗(correct),` **`La7Sr3Fe10O30✓(wrong), Sr0.3La0.7TiO3✓(wrong)`** | different host lattices pass as "same compound" |
+| Co-dopant dict `{"dopant","site","fraction"}` (the repo's **own** benchmark data) | `co_dopants=[]` — silently dropped | built-in co-doping case never runs co-doped |
+| `_normalize_space_group` | `Pnma≈62 ✓, Pnma≈pnma ✓, Pnma≈"P n m a" ✓,` **`P21/c ✗ P2_1/c`** | equivalent spellings normalize to different keys |
+| `check_bond_lengths`: single Na in a 10 Å box; Na+Cl 8.66 Å apart | both `(True, [])` | detached/expanded structures pass |
+| `_fallback_symmetry_matrix` on unparseable CIF | `success=True, sg='P 1', ops=1` | fabricated defaults reported as a result |
+| CrystaLLM submodule pinned at `8e81a86` | `git fetch` **succeeded** upstream | the pinned commit is valid — not a broken submodule |
+| Real CrystaLLM package exports | `CIFTokenizer, GPT, GPTConfig, get_atomic_props_block_for_formula`; `generate(idx, max_new_tokens, temperature, top_k)` | **`generate.py`'s API usage is correct** |
+
+External facts I checked against primary sources: OQMD's `element_set` uses `-` for OR and `,` for AND, and its field list is documented [OQMD RESTful API](https://static.oqmd.org/static/docs/restful.html) · COD officially supports `formula`, `spacegroup`, `space_group_number`, `el1..el8`, `include_theoretical` [COD RESTful API wiki](https://wiki.crystallography.net/RESTful_API/) · Modern Materials Project client is `mpr.materials.summary.search(...)` [Materials Project — Querying Data](https://docs.materialsproject.org/downloading-data/using-the-api/querying-data) · CrystaLLM's prompt/API surface [lantunes/CrystaLLM](https://github.com/lantunes/CrystaLLM), [CrystaLLM paper](https://arxiv.org/html/2307.04340v3).
+
+---
+
+## 2. Inventory — what every file does and its state
+
+| File | LOC | Role | State |
+|---|---|---|---|
+| `webapp.py` | 592 | FastAPI backend, 9 routes, serves `frontend/` at `/` | runs, but auto-answers its own questions, fake auth |
+| `frontend/app.js` | 1626 | UI logic; calls only `/api/health`, `/api/parse-formula`, `/api/generate` | no reference found to `/api/symmetry-matrix`, `/api/mesp-check` or `/api/auth/login` |
+| `frontend/*.html` + `style.css` | ~2650 | 8 pages (index, batch, plan, subjects, manual, mother-compound, on-source, other-source) | static |
+| `cif_pipeline/orchestrator.py` | 218 | stage wiring, blank-input guard, error wrapping | solid; warning states are indistinguishable from success |
+| `cif_pipeline/classify.py` | 624 | doped/undoped decisions, `DopingSpec`, input normalization | mostly strong; 4 real defects |
+| `cif_pipeline/matching.py` | 300 | formula reduction, tolerance matching, polymorph policy | policy excellent, one matcher too loose |
+| `cif_pipeline/search_external.py` | 460 | MP / OQMD / JARVIS / COD | MP+COD good; OQMD filter wrong; calls sequential |
+| `cif_pipeline/search_internal.py` | 56 | internal DB | permanent no-op stub |
+| `cif_pipeline/generate.py` | 443 | CrystaLLM feedback loop | API correct; device not threaded through |
+| `cif_pipeline/relax.py` | 214 | MACE via ASE | reports `converged=True` when it never ran |
+| `cif_pipeline/filter_rules.py` | 276 | bond/symmetry/charge/duplicate gates | two gates are effectively no-ops |
+| `cif_pipeline/doping.py` | 207 | parent resolution + substitution | correct approach; mutates caller input |
+| `cif_pipeline/symmetry_matrix.py` | 221 | symmetry report for UI | fabricates defaults on failure |
+| `cif_pipeline/mesp_check.py` | 160 | "MESP & relaxation validation" | **hardcoded numbers presented as measurements** |
+| `cif_pipeline/batch_processor.py` | 134 | benchmark batch + `.dat` writer | 11 entries labelled "10"; auto-picks answers |
+| `cif_pipeline/models.py`, `config.py`, `user_interaction.py`, `__init__.py` | 171 | dataclasses, `.env` loading, `ask_user` hook | clean |
+| `test_10_materials.py` | 150 | 10-material benchmark | correct (10 entries) |
+| `test_qa_status.py` | 231 | QA harness | hardcoded `e:/CIF-generator` path |
+| `data/*.dat` (5) | ~80 | reference tables + batch output | `batch_test_cases.dat` says "Total Cases: 1" and is overwritten by any run |
+| Docs: `cif_pipeline/README.md`, `cif_pipeline_master_reference.md`, `cif_pipeline_qa_brief.md`, `cif_pipeline_qa_brief (1).md` | ~680 | design + QA | stale + duplicated; no root `README.md` |
+| `.gitmodules` → `crystallm_repo`, `requirements.txt`, `.env.example`, `.gitignore` | ~50 | setup | submodule commit valid; **deps incomplete** |
+
+---
+
+## 3. Findings and minimal, non-breaking fixes
+
+### P0 — blocking / wrong output
+
+**F1. The web app answers its own questions, and that makes the "never silently pick" policy fail.**
+`webapp.py:52-60` returns `options[0]` for every clarification. Follow the consequence chain: `classify.py:511` sets `is_doped = (answer == "Doped (substitutional)")`, and option 0 *is* that string → every non-stoichiometric formula is forced down the doping branch (verified: `Fe0.95O` → `is_doped=True`). In `matching.py:243-272`, when no candidate matches a user-requested space group, option 0 is a mismatched entry — so a request for `Pnma` silently returns the first wrong polymorph. The choices design in `matching.py`/`classify.py` is right; the caller defeats it.
+
+```diff
+--- a/webapp.py
++++ b/webapp.py
+@@
+-def _web_ask_handler(question: str, options: Optional[List[str]] = None) -> Optional[str]:
+-    """Default non-blocking callback for web requests:
+-    If options are provided, select the first option with a logged note,
+-    ensuring execution completes without stalling on stdin.
+-    """
+-    if options:
+-        log.info(f"[WebUI] Auto-selecting primary option '{options[0]}' for question: {question}")
+-        return options[0]
+-    return None
++def _web_ask_handler(question: str, options: Optional[List[str]] = None) -> Optional[str]:
++    """No interactive channel in a single request: NEVER guess on the user's
++    behalf. Returning None makes the pipeline surface the ambiguity instead of
++    silently taking options[0] (which would answer the question itself)."""
++    log.info(f"[WebUI] clarification required: {question} | options={options}")
++    return None
+```
+**Touches:** one function. **Why it can't break callers:** every consumer already handles `None` — `matching.py:270,298` return `(None, matches)` → `orchestrator.py:93-104,119-126` return `source="ambiguous_polymorphs"` with the full `candidate_matches`, which `webapp.py` already serialises; `doping.py:138-140` logs a warning and keeps its previous default. **Follow-up needed (frontend):** the UI must render a picker round-trip; I could not confirm it has one.
+
+**F2. `/api/mesp-check` reports CONVERGED using hardcoded placeholders.**
+`mesp_check.py:51-52` defaults `fmax=0.018`, `energy=-5.842` when the caller omits them, then line 54-56 computes `is_relaxed` from those constants. Verified live on a real Cu CIF with no inputs: `is_relaxed=True, CONVERGED, energy=-5.842, fmax=0.018`. Worse, `webapp.py:542-551` passes `fmax`/`energy_per_atom` **from the client**, so the convergence verdict is user-supplied. The reported `mesp_pot_eV` is not a potential either — it's `formal_charge * 1.45 ± 0.1` (line 80) or a Pauling-electronegativity guess (lines 86-97; verified: Cu → `formal_charge 0.72`, which is exactly `(1.9-2.5)*-1.2`). Unparseable CIFs still return `success=True` with two dummy atoms named `"Cat"`/`"An"` (lines 104-107).
+
+```diff
+--- a/cif_pipeline/mesp_check.py
++++ b/cif_pipeline/mesp_check.py
+@@
+-    actual_fmax = fmax if fmax is not None else 0.018  # default converged value if not passed
+-    actual_energy = energy_per_atom if energy_per_atom is not None else -5.842
+-
+-    is_force_converged = actual_fmax < FMAX_THRESHOLD
+-    is_energy_favorable = actual_energy < 0.0
+-    is_relaxed = is_force_converged and is_energy_favorable
++    # Never invent a convergence verdict: without measured inputs we simply
++    # cannot say, so report "unknown" instead of the old placeholder values.
++    if fmax is None or energy_per_atom is None:
++        is_relaxed = False
++        relaxation_state = "UNKNOWN (no relaxation data supplied)"
++    else:
++        is_relaxed = (fmax < FMAX_THRESHOLD) and (energy_per_atom < 0.0)
++        relaxation_state = "CONVERGED" if is_relaxed else "ACTIVE / UNCONVERGED"
+@@
+-        "is_relaxed": is_relaxed,
+-        "relaxation_status": "CONVERGED" if is_relaxed else "ACTIVE / UNCONVERGED",
+-        "energy_per_atom_eV": round(actual_energy, 4),
+-        "fmax_eV_per_angstrom": round(actual_fmax, 4),
++        "is_relaxed": is_relaxed,
++        "relaxation_status": relaxation_state,
++        "energy_per_atom_eV": round(energy_per_atom, 4) if energy_per_atom is not None else None,
++        "fmax_eV_per_angstrom": round(fmax, 4) if fmax is not None else None,
++        "data_source": "measured" if (fmax is not None and energy_per_atom is not None) else "unavailable",
+```
+Also replace the `"Cat"/"An"` placeholder list (lines 102-108) with an explicit empty list + an error string. **Touches:** two functions; response keys are preserved (values become `null`), so the frontend keeps rendering. **Verified gap:** I did not measure whether the UI reads `atomic_charges` — it has no literal call to this endpoint in `frontend/` (grep), so blast radius is likely nil.
+
+**F3. `requirements.txt` is missing the web stack** — `fastapi`, `uvicorn` (and `httpx` for `fastapi.testclient`). Verified: those imports fail after installing the declared requirements, while `webapp.py:14-16` needs them. Additive fix, zero risk; I'd also pin `mp-api>=0.45` ([docs](https://docs.materialsproject.org/downloading-data/using-the-api/querying-data)) and note that `crystallm_repo` must be installed separately (`pip install -e crystallm_repo`, as `generate.py:132-136` itself says).
+
+**F4. `doped_formulas_match` accepts a different host lattice.** It checks only the dopant/(dopant+host-site) ratio (`matching.py:198-203`), never the host composition. Verified: `La7Sr3Fe10O30` and `Sr0.3La0.7TiO3` both match a `LaMnO3` + Sr spec.
+
+```diff
+--- a/cif_pipeline/matching.py
++++ b/cif_pipeline/matching.py
+@@
+     site_total = amt_dopant + amt_host
+-    return abs((amt_dopant / site_total) - doping_spec.dopant_fraction) <= tol
++    if abs((amt_dopant / site_total) - doping_spec.dopant_fraction) > tol:
++        return False
++    # The host lattice must also match: without this, "La7Sr3Fe10O30" passes as
++    # the same compound as "La0.7Sr0.3MnO3" purely because the Sr/La ratio agrees.
++    try:
++        expected_els = {str(el) for el in Composition(doping_spec.host_formula).elements}
++    except Exception:
++        return True  # host unparseable -> keep the old, looser behaviour
++    expected_els.add(str(doping_spec.dopant_species))
++    return {str(el) for el in comp_a.elements} == expected_els
+```
+**Touches:** signature unchanged (`formula_a, doping_spec, tol=0.03`). **Call sites checked by grep:** `search_external.py:454` and `search_internal.py:50` only. **Expected effect from my probe data:** `La7Sr3Mn10O30` stays `True` (element set `{La,Sr,Mn,O}` matches), the two false positives become `False`.
+
+**F5. The OQMD query asks for the wrong thing.** `search_external.py:142` builds `element_set=(Fe-O)`, but per the official docs `-` means **OR**, `,` means **AND** [OQMD RESTful API](https://static.oqmd.org/static/docs/restful.html). Verified live — the code's own filter returned 50 junk hits for Fe2O3: `Fe, VFe, TiFe, FePd, ZnO, CuO, TiO, VO, BeO, FePt`. Even once fixed, OQMD's `element_set` means "must contain", not "exactly these" — so a client-side exact-composition check is mandatory.
+
+```diff
+-            element_filter = f"element_set=({'-'.join(elements)})"
++            # OQMD: '-' = OR, ',' = AND (docs). We need "has Fe AND O".
++            element_filter = f"element_set={','.join(elements)}"
+```
+```diff
+         for entry in entries:
++            # OQMD filter is "must contain", not "exactly": verify client-side.
++            try:
++                if {str(el) for el in Composition(entry.get("name", "")).elements} != set(elements):
++                    continue
++            except Exception:
++                continue
+```
+Also: `limit` is not in the documented parameter list, and the endpoint returned **HTTP 502** on my live test (both `http` and `https`) — wrap the call in a small retry/backoff and treat non-JSON as an outage, not an empty result (it currently dies in `resp.json()` at line 152 inside the broad `except`, hiding the real cause). **Touches:** one function, no signature change. **Note:** the exact field names (`entry_id`, `formationenergy`) appear in OQMD's own example but not in its field list (`delta_e`/`stability` are listed) — worth one live check.
+
+**F6. "Relaxed successfully (energy=0.0000 eV)" is reported for every doped structure.** `relax.py:100-117` takes the disordered branch (any partial occupancy — i.e. *all* doped structures) and returns `converged=True, energy=0.0`; `relax.py:163-173` does the same on exception. `orchestrator.py:212-218` then reports success, and `webapp.py` sets `"success": true`. So MACE never actually relaxes a doped structure, and the pipeline says it did. Recommended additive fix (no caller changes — all `RelaxResult(...)` constructions use keywords):
+
+```diff
+--- a/cif_pipeline/relax.py
+@@
+ class RelaxResult:
+     structure: Structure
+     energy: float
+     converged: bool
+     max_force: float
+     notes: str = ""
+     final_space_group: Optional[str] = None
++    relaxation_skipped: bool = False   # geometry preserved; optimizer never ran
+@@
+             return RelaxResult(
+                 structure=structure,
+                 energy=0.0,
+                 converged=True,
+                 max_force=0.0,
++                relaxation_skipped=True,
+                 notes=(
+```
+```diff
+--- a/cif_pipeline/models.py
+@@
+     candidate_matches: list = field(default_factory=list)
+     doped_validation: Optional[DopedStructureValidation] = None
++    is_reliable: bool = True      # False when we returned a structure we flag as untrustworthy
+```
+…set `is_reliable=False` in the three warning returns of `orchestrator.py:190-198, 202-210`, append `"(MACE relaxation was skipped/not performed)"` to the note when `relaxation_skipped`, and add `"reliable": result.is_reliable` to the `/api/generate` JSON (additive key). The one-line alternative (`converged=False` in those branches) is more honest but flips the doped success path — pick it only if you accept that behaviour change.
+
+### P1 — correctness / robustness
+
+**F7. Free-text answers crash the pipeline.** `options.index(choice)` at `matching.py:272`, `matching.py:300`, `doping.py:142`, `generate.py:415` raises `ValueError` when the answer isn't an option — and the CLI *does* return free text (`user_interaction.py:29`). Add one helper and use it at the four sites:
+
+```python
+# user_interaction.py
+def pick_option_index(choice: Optional[str], options: Optional[List[str]]) -> Optional[int]:
+    """Index of `choice` in `options`, or None for free text / decline / timeout."""
+    if not choice or not options:
+        return None
+    try:
+        return options.index(choice)
+    except ValueError:
+        return None
+```
+Then at each site: `idx = pick_option_index(choice, options)` and use `idx` with an `is None` branch (for `matching.py`, `None` already means "surface all candidates"; for `doping.py`, keep the existing `candidates[0]` fallback; for `generate.py`, keep the lowest-energy candidate). Signature-compatible; new function only.
+
+**F8. `co2` → `Co2`.** `_normalize_formula_input` (verified) silently reinterprets lowercase carbon dioxide as cobalt — a real chemistry change, and exactly the case `cif_pipeline_qa_brief.md` §1.2 asks you to decide. Mechanism (read from `classify.py:97-115, 139-161`): both readings score `+50` from `oxi_state_guesses`, and the stable sort keeps the first-built candidate `Co2`; I did not instrument the scorer, so treat the mechanism as inferred, the outcome as verified. Do **not** fix this with a score-margin rule — I verified `caco3 → CaCO3` works today and a margin rule would likely reject it (tie). The safe fix is a confirmation gate, not a silent rewrite: `/api/parse-formula` already returns `case_corrected`; make `/api/generate` refuse a repaired formula unless an explicit `confirmed_formula` is supplied, returning the candidate readings (`Co2` vs `CO2`).
+
+**F9. Algebraic doping with parentheses isn't parsed, though the docstring says it is.** `_ALGEBRAIC_DOPING_RE` (`classify.py:43-46`) requires `La1-xSrx`; verified `_parse_algebraic_doping("La(1-x)Sr(x)MnO3 with x=0.25") → None` and `classify("La(1-x)SrxMnO3") → is_doped=False`. The module docstring (lines 288-297) and QA brief §2.2 both claim this works. Minimal, regression-free extension: add an alternative branch to the pattern (keeping groups 1/2 valid for the old form and reading `host_el = m.group(1) or m.group(3)`, `dopant_el = m.group(2) or m.group(4)`), and extend the tail-extraction regex at `classify.py:461` to accept `(x)`.
+
+**F10. The repo's own co-doping benchmark silently runs as single-dopant.** `batch_processor.py:26` supplies `{"dopant": "Cr", "site": "Fe", "fraction": 0.025}`, but `classify.py:602` reads only `dopant_element`/`dopant_species` (while `site`/`fraction` *are* read at 603-604). Verified: that dict yields `co_dopants=[]`; the same dict with key `dopant_element` yields `[('Cr','Fe',0.025)]`. One-token fix — add `or item.get("dopant")` — plus replace the swallowing `except Exception: pass` (613-614) with a `log.warning`.
+
+**F11. `P21/c` ≠ `P2_1/c`.** Verified: `_normalize_space_group('P21/c')` returns `'P21/c'` (all parse attempts fail) while `'P2_1/c'` returns pymatgen's odd symbol `'P12_1/c1'` — so a user asking for `P21/c` never matches a record stored as `P2_1/c`. Minimal fix: insert a spelling-repair attempt into the `attempts` list at `matching.py:75-82` (`P21/c → P2_1/c`, guarded so it can't double-underscore `P6_3/mmc`). **Why it's safe:** the public return contract is unchanged (`'Pnma'` stays `'Pnma'`, so `test_qa_status.py`'s expectations hold). **Unconfirmed:** I did not execute this patch; the durable fix is comparing by IT number, which would require updating your QA harness strings.
+
+**F12. `MACE_DEVICE=cuda` never reaches MACE.** Grep-verified: `get_mace_device()` is used only by CrystaLLM (`generate.py:205`); `orchestrator.py:27` imports it and never calls it; `relax.py:76` and `relax.py:213` hardcode `device="cpu"`, and `generate.py:356` never passes a device. GPU users silently run on CPU. Fix: default `device=None` in `relax_with_mace`/`batch_relax` and resolve `get_mace_device()` inside (cache key at `relax.py:37` unchanged; only caller of `batch_relax` is `generate.py:356`).
+
+**F13. Bond-length gate misses detached atoms.** `filter_rules.py:62-64` skips any site with no neighbour within 6 Å, so the "isolated/detached" branch is unreachable beyond 6 Å. Verified: `Na+Cl` 8.66 Å apart → `(True, [])`, as does a lone Na in a 10 Å box. Fix: record a violation instead of `continue` when `len(structure) > 1`. Touches `filter_candidates` only (line 173).
+
+**F14. Authentication is decorative.** `webapp.py:520-533` returns success for any credentials (verified), and `hash(username)` is unstable across processes (verified), so no token can ever be validated. If the UI's login is meant to be real, use `hmac.compare_digest` against env-configured credentials plus an HMAC-signed token, and require it on `/api/generate`; gate with a `CIF_AUTH_ENABLED` flag so dev flows keep working. If it is cosmetic, delete it — a fake token is worse than none.
+
+### P2 — hardening, honesty, scale (tables)
+
+| ID | Where | Problem | Fix (all additive/contained) |
+|---|---|---|---|
+| F15 | `filter_rules.py:85-91` | `check_symmetry` returns `True` whenever spglib doesn't raise — essentially always | add a real predicate (e.g. fail when the structure reduces to P1 while the prompt claimed a lattice) or delete the gate instead of pretending it filters |
+| F16 | `symmetry_matrix.py:150-221` | fabricates `success=True`, `P 1`, `a=b=c=5.0`, `is_centro=False` on failure (verified) | keep keys, add `"fallback": True` + `cell_parameters_source`; fallback `volume=a*b*c` is also wrong for non-cubic cells |
+| F17 | `symmetry_matrix.py:43` | deprecated `CifParser.get_structures` (FutureWarning seen live) | switch to `parse_structures(primitive=False)` |
+| F18 | `filter_rules.py:230-254` | `validate_doped_structure` breaks on the *first* site containing host **or** dopant — a pure host site can yield `occ_sum=1.0` (false pass); co-dopants on other sites unvalidated | prefer the first site containing the **dopant**, then fall back |
+| F19 | `doping.py:38-41` | parent resolution discards the user's requested space group | add trailing `space_group: Optional[str] = None` to `DopingSpec`, pass it through |
+| F20 | `doping.py:126,139,142` | mutates the caller's `DopingSpec` (`site_index`) | compute locally, return `(structure, spec)` or copy first |
+| F21 | `webapp.py:573-586` | no traversal guard (URL-encoding blocked it in my tests → hardening only) | `resolve()` + `startswith(data_dir)` + restrict to `*.dat` |
+| F22 | `search_external.py:97-99` | `mpr.summary.search` — docs use `mpr.materials.summary.search` | resolve `mpr.materials.summary` first, fall back to `mpr.summary` |
+| F23 | `search_external.py:443-447` | four DBs queried sequentially inside a sync `def` handler; JARVIS downloads ~1.5 GB; COD fetches ≤20 CIFs at 15 s each | `asyncio.gather`/`run_in_executor` + on-disk cache + shorter timeouts |
+| F24 | `search_internal.py:19-28` | always returns `[]` | wire the store or delete the stage so "not found anywhere" is honest |
+| F25 | `user_interaction.py:35-40` | `web_form_ask_stub` raises `NotImplementedError` | implement the round-trip — it is the missing half of the whole ask-user design |
+| F26 | `classify.py:139-161` | Cartesian product of segmentations × `oxi_state_guesses` per candidate → CPU burn reachable from `/api/parse-formula` | cap candidates (~400) and skip oxidation guessing past N elements |
+| F27 | `webapp.py:227` + `/api/generate` timeline | claims "Stage 5: Relaxation … completed" for `existing_*` results that are returned straight from the DB (`orchestrator.py:84-92`) | make the timeline reflect what actually ran |
+| F28 | `batch_processor.py:23-35, 99-100` | `BENCHMARK_10_MATERIALS` has **11** entries; every run overwrites the committed `data/batch_test_cases.dat` (currently "Total Cases: 1") and dirties git | rename to `BENCHMARK_MATERIALS`, write output to a gitignored path/`tempfile` |
+| F29 | `test_qa_status.py:6` | hardcoded `r"e:/CIF-generator"`; prints PASS/FAIL (I only reviewed the first 120 lines, so I can't confirm it propagates a non-zero exit code) | drop the path insert, add `sys.exit(1)` on failure |
+| F30 | `cif_pipeline/README.md:81-98`, `cif_pipeline_master_reference.md` | README says COD has no `formula=` parameter — the COD wiki documents it and my live request returned 25 rows; the master reference says all four DB calls are stubbed while they are implemented | correct the docs; consolidate the three overlapping docs and delete `cif_pipeline_qa_brief (1).md`; add a root `README.md` |
+| F31 | `webapp.py` JSON | `success` means "a CIF came back", so invalid-doping and unrelaxed results both read as success | consume F6's `is_reliable` / `reliable` key |
+
+---
+
+## 4. What is correct — don't touch it
+
+`orchestrator.py:45-54` blank-input guard (verified: `""`/`"   "` → `source="failed"` with a clean message); the normalization contract in `matching.py` with its `NormalizationTrace`; the polymorph policy (full candidate list always returned, requested space group checked *before* the `len==1` shortcut — a deliberate, correct ordering); stage separation in `filter_rules.py`; CrystaLLM integration (`CIFTokenizer/GPT/GPTConfig`, `tokenize_cif`, `encode`, `generate(...)`, `get_atomic_props_block_for_formula` all exist in the real package — prompt verified as `'data_Fe2O3\n'`); COD column reads (`file/formula/sg/flags/method` all present in the live 73-column header); the `doping.py` error wrapping in `orchestrator.py:171-188`; `StaticFiles` mounted **after** the API routes (verified: `/api/*` still returns 200); Unicode subscripts / state annotations / hydrate dots / abbreviations; and the pinned submodule commit `8e81a86`, which is fetchable upstream.
+
+---
+
+## 5. Do this in this order
+
+1. **F3** `requirements.txt` (+ fastapi/uvicorn/httpx, pin mp-api) — 2 min, unblocks everything.
+2. **F1** `_web_ask_handler` → `return None` — 2 min, kills the largest class of silent wrong answers.
+3. **F7** `pick_option_index` at 4 sites — 10 min, kills the remaining crashes.
+4. **F6** `relaxation_skipped` + `is_reliable` + `reliable` in JSON — 20 min, stops the pipeline claiming a relaxation it never ran.
+5. **F2** honest `mesp_check` verdicts — 20 min, removes the fabricated CONVERGED panel.
+6. **F4 + F5** matcher strictness + OQMD filter/retry/exact-check — 30 min, stops wrong database hits.
+7. **F8 + F9 + F10 + F11** input-layer defects — 45 min, each independently testable.
+8. **F12 + F13 + F14**, then the P2 sweep.
+
+Then re-run `test_10_materials.py` and `test_qa_status.py` and diff the outputs against today's behaviour — that's your regression net.
+
+---
+
+## 6. Limits of this review
+
+I could not run `run_pipeline` end-to-end: there is no `MP_API_KEY` here and JARVIS would pull 1.5 GB, so the MP/JARVIS/CrystaLLM/MACE execution paths are **code-read only** — everything else in the tables above was executed. Items I explicitly did not confirm: the `mp-api` method path on *your* installed version (only the docs' `mpr.materials.summary`), the exact behaviour of the F11/F18 patches (proposed, not executed), whether `test_qa_status.py` exits non-zero, and whether the frontend renders `candidate_matches` (it has no literal call to `/api/symmetry-matrix`, `/api/mesp-check`, or `/api/auth/login`, so those three surfaces look unwired). Two of my probe scripts hit my own API-misuse (`Lattice.hexagonal` argument order) and a truncated output, so `validate_doped_structure` execution, `classify_compound_type` outputs, and the frontend grep counts are **not** verified — I've left those out of the findings rather than guess.
+
+Want me to turn this into a git branch with the P0+P1 patches applied and a PR-ready diff, or wire the frontend clarification round-trip that F1 depends on? I can also produce an annotated pipeline diagram with the failure points marked.

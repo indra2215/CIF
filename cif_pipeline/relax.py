@@ -66,6 +66,7 @@ class RelaxResult:
     max_force: float
     notes: str = ""
     final_space_group: Optional[str] = None   # always computed AFTER relaxation, never inherited pre-relaxation
+    relaxation_skipped: bool = False          # True when geometry is preserved without optimizer running
 
 
 def relax_with_mace(
@@ -73,7 +74,7 @@ def relax_with_mace(
     model_path: Optional[str] = None,
     fmax: float = 0.05,
     max_steps: int = 200,
-    device: str = "cpu",
+    device: Optional[str] = None,
 ) -> RelaxResult:
     """Relax a structure using MACE-MP-0 as the interatomic potential.
 
@@ -85,6 +86,13 @@ def relax_with_mace(
     spglib symmetry analysis — MACE has no opinion on symmetry; it only
     moves atoms to minimize energy.
     """
+    if device is None:
+        try:
+            from .config import get_mace_device
+            device = get_mace_device() or "cpu"
+        except Exception:
+            device = "cpu"
+
     try:
         import numpy as np
         from ase.optimize import FIRE
@@ -114,6 +122,7 @@ def relax_with_mace(
                     f"Lattice preserved from parent structure with space group {final_sg}."
                 ),
                 final_space_group=final_sg,
+                relaxation_skipped=True,
             )
 
         try:
@@ -170,6 +179,7 @@ def relax_with_mace(
                 max_force=0.0,
                 notes=f"MACE force optimization bypassed: {opt_err}. Preserved geometry with SG={final_sg}.",
                 final_space_group=final_sg,
+                relaxation_skipped=True,
             )
 
         notes = ""
@@ -188,6 +198,7 @@ def relax_with_mace(
             max_force=max_force,
             notes=notes,
             final_space_group=final_sg,
+            relaxation_skipped=False,
         )
 
     except ImportError as e:
@@ -196,19 +207,21 @@ def relax_with_mace(
         return RelaxResult(
             structure=structure, energy=0.0, converged=False, max_force=999.0,
             notes=f"MACE not available: {e}",
+            relaxation_skipped=True,
         )
     except Exception as e:
         log.error(f"[MACE] Relaxation failed: {e}")
         return RelaxResult(
             structure=structure, energy=0.0, converged=False, max_force=999.0,
             notes=f"MACE relaxation error: {e}",
+            relaxation_skipped=True,
         )
 
 
 def batch_relax(
     structures: List[Structure],
     model_path: Optional[str] = None,
-    device: str = "cpu",
+    device: Optional[str] = None,
 ) -> List[RelaxResult]:
     return [relax_with_mace(s, model_path, device=device) for s in structures]
 

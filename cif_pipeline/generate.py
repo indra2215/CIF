@@ -412,8 +412,11 @@ def generate_with_feedback_loop(
                 options,
             )
             if choice and choice != options[-1]:
-                chosen_group, chosen_results = ranked_groups[options.index(choice)]
-                best = min(chosen_results, key=lambda r: r.energy)
+                from .user_interaction import pick_option_index
+                idx = pick_option_index(choice, options)
+                if idx is not None and idx < len(ranked_groups):
+                    chosen_group, chosen_results = ranked_groups[idx]
+                    best = min(chosen_results, key=lambda r: r.energy)
 
         diag.notes = (
             f"succeeded with {len(converged)} converged candidate(s) across "

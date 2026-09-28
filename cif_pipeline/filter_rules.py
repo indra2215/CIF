@@ -59,11 +59,13 @@ def check_bond_lengths(structure: Structure, compound_type: str) -> Tuple[bool, 
     tol = BOND_LENGTH_TOLERANCES.get(compound_type, BOND_LENGTH_TOLERANCES["other"])
 
     for i, site_i in enumerate(structure):
+        el_i = site_i.specie if hasattr(site_i, "specie") else list(site_i.species.elements)[0]
         neighbors = structure.get_neighbors(site_i, r=6.0)
         if not neighbors:
+            if len(structure) > 1:
+                violations.append(f"site {i} ({el_i}): no neighbor within 6.0A (isolated/detached atom)")
             continue
         nearest = min(neighbors, key=lambda n: n.nn_distance)
-        el_i = site_i.specie if hasattr(site_i, "specie") else list(site_i.species.elements)[0]
         site_j = getattr(nearest, "site", nearest)
         el_j = site_j.specie if hasattr(site_j, "specie") else list(site_j.species.elements)[0]
 
@@ -227,31 +229,41 @@ def validate_doped_structure(
     occ_sum = None
     bond_ok, bond_issues = True, []
 
+    target_site_idx = None
     for i, site in enumerate(doped_structure):
         species_dict = {str(el): amt for el, amt in site.species.items()}
-        if host_site_species in species_dict or dopant_species in species_dict:
-            occ_sum = species_dict.get(host_site_species, 0.0) + species_dict.get(dopant_species, 0.0)
+        if dopant_species in species_dict:
+            target_site_idx = i
+            break
+    if target_site_idx is None:
+        for i, site in enumerate(doped_structure):
+            species_dict = {str(el): amt for el, amt in site.species.items()}
+            if host_site_species in species_dict:
+                target_site_idx = i
+                break
 
-            neighbors = doped_structure.get_neighbors(site, r=6.0)
-            if neighbors:
-                nearest = min(neighbors, key=lambda n: n.nn_distance)
-                tol = BOND_LENGTH_TOLERANCES.get(compound_type, BOND_LENGTH_TOLERANCES["other"])
-                r_host = Element(host_site_species).atomic_radius or 1.0
-                r_dopant = Element(dopant_species).atomic_radius or 1.0
-                site_neighbor = getattr(nearest, "site", nearest)
-                el_neighbor = site_neighbor.specie if hasattr(site_neighbor, "specie") else list(site_neighbor.species.elements)[0]
-                r_neighbor = Element(str(el_neighbor)).atomic_radius or 1.0
-                # use whichever of host/dopant radius gives the tighter (more
-                # conservative) minimum, since the site is now a mixture of both
-                expected = min(r_host, r_dopant) + r_neighbor
-                min_ok = expected * tol["min_mult"]
-                if nearest.nn_distance < min_ok:
-                    bond_ok = False
-                    bond_issues.append(
-                        f"doped site {i}: nearest-neighbor distance {nearest.nn_distance:.2f}A "
-                        f"< minimum {min_ok:.2f}A"
-                    )
-            break  # only one site should match a freshly-doped structure
+    if target_site_idx is not None:
+        site = doped_structure[target_site_idx]
+        species_dict = {str(el): amt for el, amt in site.species.items()}
+        occ_sum = species_dict.get(host_site_species, 0.0) + species_dict.get(dopant_species, 0.0)
+
+        neighbors = doped_structure.get_neighbors(site, r=6.0)
+        if neighbors:
+            nearest = min(neighbors, key=lambda n: n.nn_distance)
+            tol = BOND_LENGTH_TOLERANCES.get(compound_type, BOND_LENGTH_TOLERANCES["other"])
+            r_host = Element(host_site_species).atomic_radius or 1.0
+            r_dopant = Element(dopant_species).atomic_radius or 1.0
+            site_neighbor = getattr(nearest, "site", nearest)
+            el_neighbor = site_neighbor.specie if hasattr(site_neighbor, "specie") else list(site_neighbor.species.elements)[0]
+            r_neighbor = Element(str(el_neighbor)).atomic_radius or 1.0
+            expected = min(r_host, r_dopant) + r_neighbor
+            min_ok = expected * tol["min_mult"]
+            if nearest.nn_distance < min_ok:
+                bond_ok = False
+                bond_issues.append(
+                    f"doped site {target_site_idx}: nearest-neighbor distance {nearest.nn_distance:.2f}A "
+                    f"< minimum {min_ok:.2f}A"
+                )
 
     occupancy_ok = occ_sum is not None and abs(occ_sum - 1.0) <= occupancy_tol
     is_valid = occupancy_ok and bond_ok

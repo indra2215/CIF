@@ -7,6 +7,8 @@ element breakdown, execution timeline, and serving the modern monochrome fronten
 from __future__ import annotations
 import os
 import time
+import hmac
+import hashlib
 import logging
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -50,13 +52,11 @@ class ParseFormulaRequest(BaseModel):
 
 
 def _web_ask_handler(question: str, options: Optional[List[str]] = None) -> Optional[str]:
-    """Default non-blocking callback for web requests:
-    If options are provided, select the first option with a logged note,
-    ensuring execution completes without stalling on stdin.
+    """No interactive channel in a single HTTP request: NEVER guess on the user's
+    behalf. Returning None makes the pipeline surface ambiguity or candidate lists
+    instead of silently selecting options[0] (which would answer the question itself).
     """
-    if options:
-        log.info(f"[WebUI] Auto-selecting primary option '{options[0]}' for question: {question}")
-        return options[0]
+    log.info(f"[WebUI] Clarification required: {question} | options={options}")
     return None
 
 
@@ -515,6 +515,7 @@ def generate_cif(req: GenerationRequest) -> Dict[str, Any]:
         "parsed_elements": parsed_elements,
         "notes": result.notes,
         "cif_string": result.cif_string,
+        "reliable": getattr(result, "is_reliable", True),
         "matched_record": matched,
         "candidate_matches": candidates,
         "normalization_trace": norm_trace,
@@ -551,10 +552,15 @@ def auth_login(req: LoginRequest) -> Dict[str, Any]:
     password = req.password
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password are required")
-    # Acceptance criteria: accept user authentication
+    auth_enabled = os.environ.get("CIF_AUTH_ENABLED", "false").lower() in ("true", "1", "yes")
+    expected_pwd = os.environ.get("CIF_AUTH_PASSWORD", "admin")
+    if auth_enabled and not hmac.compare_digest(password, expected_pwd):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    secret = os.environ.get("CIF_SECRET_KEY", "cif-dev-secret-key-2026")
+    sig = hashlib.sha256(f"{username}:{secret}".encode()).hexdigest()[:12]
     return {
         "success": True,
-        "token": f"jwt_cif_{int(time.time())}_{hash(username) % 10000:04d}",
+        "token": f"jwt_cif_{int(time.time())}_{sig}",
         "username": username,
         "role": "Crystallography Researcher",
         "session_expires_in": 86400,
@@ -600,9 +606,14 @@ def list_data_files() -> Dict[str, Any]:
 
 @app.get("/api/data-files/{filename}")
 def get_data_file(filename: str):
-    data_dir = Path(__file__).resolve().parent / "data"
-    file_path = data_dir / filename
-    if not file_path.exists() or not file_path.is_file():
+    data_dir = (Path(__file__).resolve().parent / "data").resolve()
+    file_path = (data_dir / filename).resolve()
+    try:
+        if not file_path.is_relative_to(data_dir):
+            raise HTTPException(status_code=403, detail="Access denied")
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not filename.endswith(".dat") or not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Data file not found")
     return Response(
         content=file_path.read_text(encoding="utf-8"),
