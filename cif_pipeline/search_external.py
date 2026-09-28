@@ -15,6 +15,7 @@ while the other sources continue normally.
 from __future__ import annotations
 import csv
 import io
+import time
 import logging
 from typing import List, Optional, Tuple
 
