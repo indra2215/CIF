@@ -1,0 +1,18 @@
+# ==============================================================================
+# CIF ARCHITECT v2.0 — Compound Classification Matrix (.dat)
+# Reference: IUPAC / Materials Project / Open Crystallography Standards
+# Format: ClassID  Category  StoichiometryType  TypicalSpaceGroup  Coordination  Example
+# ==============================================================================
+1   BinaryOxide         A2X3       R-3c           6:4          Fe2O3
+2   PolymorphicOxide    AX2        P4_2/mnm       6:3          TiO2
+3   AlkaliHalide        AX         Fm-3m          6:6          NaCl
+4   AlkalineEarthHalide AX2        Fm-3m          8:4          CaF2
+5   ElementalCubic      A          Fd-3m          4:4          Si
+6   FCCMetal            A          Fm-3m          12:12        Cu
+7   CorundumOxide       A2X3       R-3c           6:4          Al2O3
+8   LayeredDichalcogen  AX2        P6_3/mmc       6:3          MoS2
+9   WurtziteII_VI       AX         P6_3mc         4:4          ZnO
+10  DopedOxideSolidSol  A(1-x)B(x) R-3c           6:4          Fe1.9Ti0.1O3
+11  PerovskiteOxide     ABX3       Pm-3m          12:6         SrTiO3
+12  SpinelFerrite       AB2X4      Fd-3m          4:6          Fe3O4
+# EOF

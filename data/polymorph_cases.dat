@@ -1,0 +1,18 @@
+# ==============================================================================
+# CIF ARCHITECT v2.0 — Polymorphism Screening Benchmark Cases (.dat)
+# Format: Formula  PolymorphName  SpaceGroup  IT_Num  Density_g_cm3  RelativeStability_eV_atom
+# ==============================================================================
+TiO2    Rutile         P4_2/mnm    136     4.25           0.0000
+TiO2    Anatase        I4_1/amd    141     3.89           0.0450
+TiO2    Brookite       Pbca        61      4.12           0.0710
+Fe2O3   Hematite(a)    R-3c        167     5.26           0.0000
+Fe2O3   Maghemite(g)   P4_332      212     4.87           0.0820
+C       Graphite       P6_3/mmc    194     2.26           0.0000
+C       Diamond        Fd-3m       227     3.51           0.0240
+SiO2    a-Quartz       P3_221      154     2.65           0.0000
+SiO2    b-Cristobalite Fd-3m       227     2.33           0.0380
+CaCO3   Calcite        R-3c        167     2.71           0.0000
+CaCO3   Aragonite      Pnma        62      2.93           0.0190
+ZnS     Sphalerite     F-43m       216     4.10           0.0000
+ZnS     Wurtzite       P6_3mc      186     3.98           0.0130
+# EOF

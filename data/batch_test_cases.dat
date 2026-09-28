@@ -1,0 +1,10 @@
+# ==========================================================================
+# CIF ARCHITECT v2.0 — Scientific Benchmark Batch Data (.dat)
+# Generated: 2026-09-24 08:35:47 UTC
+# Total Cases: 1 | Total Time: 41.59s
+# Columns: Index  Formula  Category  Success  Source  SpaceGroup  CifBytes  TimeSec
+# ==========================================================================
+Index  Formula              Success  Source             SpaceGroup     CifBytes   TimeSec  Category
+----------------------------------------------------------------------------------------------------
+1      NaCl                 1        existing_COD       P m -3 m       760        41.589   Rock-salt Halide
+# EOF

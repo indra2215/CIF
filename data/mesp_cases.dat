@@ -1,0 +1,17 @@
+# ==============================================================================
+# CIF ARCHITECT v2.0 — MESP & Relaxation Convergence Test Data (.dat)
+# Format: Formula  GroundStateEnergy_eV_atom  Fmax_eV_A  NetChargeDelta  MinPot_V  MaxPot_V  Convergence
+# ==============================================================================
+Fe2O3             -5.8420                     0.0120     0.0000          -3.21     +2.84     CONVERGED
+Fe1.9Ti0.1O3      -5.7890                     0.0185     0.0000          -3.15     +2.92     CONVERGED
+Fe1.85Ti0.1Cr0.05O3 -5.7620                   0.0210     0.0000          -3.18     +2.88     CONVERGED
+TiO2_Rutile       -7.8540                     0.0080     0.0000          -2.95     +2.60     CONVERGED
+TiO2_Anatase      -7.8090                     0.0095     0.0000          -2.88     +2.54     CONVERGED
+NaCl              -3.2100                     0.0040     0.0000          -3.80     +3.75     CONVERGED
+Si                -4.6300                     0.0010     0.0000          -0.45     +0.42     CONVERGED
+Cu                -3.7200                     0.0020     0.0000          -0.15     +0.12     CONVERGED
+Al2O3             -7.1500                     0.0110     0.0000          -3.40     +3.10     CONVERGED
+MoS2              -5.4200                     0.0150     0.0000          -1.85     +1.92     CONVERGED
+ZnO               -4.3200                     0.0140     0.0000          -2.45     +2.38     CONVERGED
+CaF2              -5.9100                     0.0070     0.0000          -4.10     +3.95     CONVERGED
+# EOF

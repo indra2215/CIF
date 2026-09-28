@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIF ARCHITECT // High-Precision Crystallographic Pipeline</title>
+  <meta name="description" content="Multi-database crystallographic structure retrieval, doping transformation, CrystaLLM generation, symmetry matrix, MESP check and MACE-MP-0 float64 relaxation pipeline.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- 3Dmol.js for WebGL Crystal Visualization -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.2/3Dmol-min.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PAGE: LOGIN
+  ═══════════════════════════════════════════════════════ -->
+  <div id="page-login" class="page-view active">
+    <div class="login-bg">
+      <div class="login-bg-grid"></div>
+      <div class="login-bg-orb orb-1"></div>
+      <div class="login-bg-orb orb-2"></div>
+      <div class="login-bg-orb orb-3"></div>
+    </div>
+
+    <div class="login-container">
+      <!-- Logo + branding -->
+      <div class="login-brand">
+        <div class="login-logo-mark">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <polygon points="24 4 4 14 24 24 44 14 24 4" stroke="currentColor" stroke-width="2" fill="none" opacity="0.9"/>
+            <polyline points="4 34 24 44 44 34" stroke="currentColor" stroke-width="2" fill="none" opacity="0.7"/>
+            <polyline points="4 24 24 34 44 24" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+          </svg>
+        </div>
+        <h1 class="login-title">CIF ARCHITECT</h1>
+        <p class="login-subtitle">High-Precision Crystallographic Pipeline</p>
+        <div class="login-badges">
+          <span class="login-badge">MACE-MP-0 float64</span>
+          <span class="login-badge">CrystaLLM</span>
+          <span class="login-badge">pymatgen</span>
+        </div>
+      </div>
+
+      <!-- Login card -->
+      <div class="login-card" id="loginCard">
+        <div class="login-card-header">
+          <h2>Welcome Back</h2>
+          <p>Sign in to access the crystallographic pipeline</p>
+        </div>
+
+        <form id="loginForm" class="login-form" novalidate>
+          <div class="login-field-group" id="loginFieldGroup">
+            <div class="login-field">
+              <label for="loginUsername">Username / Email</label>
+              <div class="login-input-wrapper">
+                <svg class="login-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input type="text" id="loginUsername" placeholder="researcher@lab.org" autocomplete="username" spellcheck="false">
+              </div>
+              <span class="login-field-error" id="usernameError"></span>
+            </div>
+
+            <div class="login-field">
+              <label for="loginPassword">Password</label>
+              <div class="login-input-wrapper">
+                <svg class="login-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+                <button type="button" class="password-toggle" id="passwordToggle" title="Show/Hide password">
+                  <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <span class="login-field-error" id="passwordError"></span>
+            </div>
+          </div>
+
+          <div id="loginErrorBanner" class="login-error-banner hidden">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span id="loginErrorText">Invalid credentials. Please try again.</span>
+          </div>
+
+          <button type="submit" class="login-submit-btn" id="loginSubmitBtn">
+            <span id="loginBtnText">Sign In</span>
+            <div id="loginBtnSpinner" class="btn-spinner hidden"></div>
+          </button>
+
+          <div class="login-demo-hint">
+            <span>Demo: use any username + password <code>demo</code></span>
+          </div>
+        </form>
+      </div>
+
+      <!-- Footer -->
+      <div class="login-footer">
+        <span>CIF Architect v2.0</span>
+        <span>·</span>
+        <span>MACE-MP-0 float64</span>
+        <span>·</span>
+        <span>CrystaLLM Engine</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SHARED HEADER (shown on all pages except login)
+  ═══════════════════════════════════════════════════════ -->
+  <header class="app-header" id="appHeader" style="display:none">
+    <div class="header-left">
+      <button class="header-logo-btn" id="headerLogoBtn" title="Go to home / input">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-title">CIF ARCHITECT</div>
+          <div class="logo-subtitle">MACE-MP-0 float64 Pipeline</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- Nav pills -->
+    <nav class="header-nav" id="headerNav">
+      <button class="nav-pill active" data-nav="page-input" id="navInput">Input</button>
+      <button class="nav-pill" data-nav="page-review" id="navReview">Formula Review</button>
+      <button class="nav-pill" data-nav="page-pipeline" id="navPipeline">Pipeline</button>
+      <button class="nav-pill" data-nav="page-results" id="navResults">Results</button>
+      <div class="nav-separator"></div>
+      <button class="nav-pill ghost" data-nav="page-subjects" id="navSubjects">Subjects</button>
+      <button class="nav-pill ghost" data-nav="page-batch" id="navBatch">Batch</button>
+    </nav>
+
+    <div class="header-right">
+      <div id="executionTimerBox" class="timer-badge">
+        <span class="timer-icon">⏱</span>
+        <span class="timer-label">EXEC:</span>
+        <span id="liveTimer" class="timer-value">0.00s</span>
+      </div>
+      <div class="precision-badge">
+        <span class="status-dot"></span>
+        <span>float64</span>
+      </div>
+      <button id="themeToggleBtn" class="icon-btn" title="Toggle Theme" aria-label="Toggle Theme">
+        <svg id="moonIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <svg id="sunIcon" class="hidden" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+        </svg>
+      </button>
+      <button class="icon-btn logout-btn" id="logoutBtn" title="Sign Out">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PAGE: INPUT (formula entry with element balance)
+  ═══════════════════════════════════════════════════════ -->
+  <div id="page-input" class="page-view app-page" style="display:none">
+    <main class="app-main">
+      <!-- Left Sidebar: Controls -->
+      <aside class="sidebar-panel">
+
+        <!-- Preset compound bench -->
+        <div class="control-section">
+          <div class="section-header-row">
+            <label class="section-label">10-MATERIAL TEST BENCH</label>
+            <span class="section-badge">10 Classes</span>
+          </div>
+          <div class="preset-group">
+            <button class="preset-chip active" data-formula="Fe2O3" data-doped="false" title="Trigonal Oxide (Hematite)">Fe₂O₃</button>
+            <button class="preset-chip" data-formula="Fe1.9Ti0.1O3" data-doped="true" data-host="Fe2O3" data-dopant="Ti" data-site="Fe" data-fraction="0.05" title="Doped Oxide (Ti in Fe site)">Fe₁.₉Ti₀.₁O₃</button>
+            <button class="preset-chip" data-formula="Fe1.85Ti0.1Cr0.05O3" data-doped="true" data-host="Fe2O3" data-dopant="Ti" data-site="Fe" data-fraction="0.05" data-codopants='[{"dopant":"Cr","site":"Fe","fraction":0.025}]' title="Co-Doped Oxide">Fe₁.₈₅Ti₀.₁Cr₀.₀₅O₃</button>
+            <button class="preset-chip" data-formula="TiO2" data-doped="false" title="Polymorphic Oxide (Rutile/Anatase)">TiO₂</button>
+            <button class="preset-chip" data-formula="NaCl" data-doped="false" title="Rock-salt Halide">NaCl</button>
+            <button class="preset-chip" data-formula="Si" data-doped="false" title="Diamond Cubic Semiconductor">Si</button>
+            <button class="preset-chip" data-formula="Cu" data-doped="false" title="FCC Transition Metal">Cu</button>
+            <button class="preset-chip" data-formula="Al2O3" data-doped="false" title="Corundum Rhombohedral">Al₂O₃</button>
+            <button class="preset-chip" data-formula="MoS2" data-doped="false" title="Layered 2D Dichalcogenide">MoS₂</button>
+            <button class="preset-chip" data-formula="ZnO" data-doped="false" title="II-VI Wurtzite Semiconductor">ZnO</button>
+            <button class="preset-chip" data-formula="CaF2" data-doped="false" title="Alkaline-Earth Halide (Fluorite)">CaF₂</button>
+          </div>
+        </div>
+
+        <!-- Formula Input Form -->
+        <form id="pipelineForm" class="control-section">
+          <div class="form-group">
+            <label for="formulaInput" class="section-label">COMPOUND FORMULA / QUERY</label>
+            <div class="input-wrapper">
+              <input type="text" id="formulaInput" name="formula" placeholder="e.g. Fe2O3, Fe1.9Ti0.1O3, TiO2" value="Fe2O3" required autocomplete="off" spellcheck="false">
+            </div>
+            <div id="caseCorrectionNotice" class="case-correction-notice hidden">
+              <span class="notice-icon">✨</span>
+              <span id="caseCorrectionText">Auto-capitalized to <strong id="normalizedFormulaVal"></strong></span>
+              <button type="button" id="applyNormalizedBtn" class="notice-apply-btn">Use Formula</button>
+            </div>
+            <span class="help-text">Auto-normalizes stoichiometry · Case correction · Unicode subscript · LSMO abbreviations</span>
+          </div>
+
+          <!-- Element Breakdown & Balance Check -->
+          <div id="elementsSearchSpaceBox" class="elements-space-card">
+            <div class="elements-space-header">
+              <span class="elements-space-title">ACTIVE SEARCH SPACE ELEMENTS</span>
+              <span id="elementCountBadge" class="elements-space-count">2 Elements</span>
+            </div>
+            <div id="elementsChipContainer" class="elements-chip-container">
+              <div class="element-chip"><span class="el-symbol">Fe</span><span class="el-amount">2.0</span><span class="el-wt">69.9% wt</span></div>
+              <div class="element-chip"><span class="el-symbol">O</span><span class="el-amount">3.0</span><span class="el-wt">30.1% wt</span></div>
+            </div>
+            <!-- Balance check indicator -->
+            <div id="balanceCheckRow" class="balance-check-row">
+              <div id="balanceIndicator" class="balance-indicator balance-ok">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span id="balanceText">Charge balance: VALID (oxide)</span>
+              </div>
+              <button type="button" id="clearFormulaBtn" class="clear-btn" title="Clear formula and reset">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Clear
+              </button>
+            </div>
+            <div class="search-elements-summary">
+              <span>DB Matrix: </span>
+              <strong id="searchMatrixLabel">[Fe, O]</strong>
+            </div>
+          </div>
+
+          <!-- Doping hint from parse -->
+          <div id="dopingDetectedBar" class="doping-detected-bar hidden">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span id="dopingDetectedText">Doping pattern detected — dopant will be extracted</span>
+          </div>
+
+          <div class="form-group">
+            <label for="spaceGroupInput" class="section-label">TARGET SPACE GROUP (OPTIONAL)</label>
+            <input type="text" id="spaceGroupInput" name="space_group" placeholder="e.g. R-3c, Fd-3m, Pnma, or 167" autocomplete="off" spellcheck="false">
+          </div>
+
+          <!-- Doping Parameters Drawer -->
+          <details id="dopingDrawer" class="doping-drawer">
+            <summary class="drawer-summary">
+              <div class="drawer-title-group">
+                <span class="drawer-title">Site-Specific Doping Specification</span>
+                <span id="dopingStateIndicator" class="drawer-badge">Undoped</span>
+              </div>
+              <span class="drawer-indicator">+</span>
+            </summary>
+            <div class="drawer-content">
+              <p class="drawer-desc">Auto-inferred from formula, or provide explicit host/dopant values:</p>
+              <div class="form-group" style="margin-bottom:6px">
+                <label for="hostFormulaInput">Host Formula (Parent Lattice)</label>
+                <input type="text" id="hostFormulaInput" placeholder="e.g. Fe2O3">
+              </div>
+              <div class="doping-criteria-bar">
+                <div class="criteria-label-group">
+                  <span class="criteria-label">DOPING CRITERIA</span>
+                  <span id="dopantCountBadge" class="criteria-badge">1 Dopant</span>
+                </div>
+                <button type="button" id="addCoDopantBtn" class="add-dopant-btn" title="Add co-dopant">
+                  <span class="plus-symbol">+</span><span>Add Co-Dopant</span>
+                </button>
+              </div>
+              <div id="dopantCellsList" class="dopant-cells-list">
+                <div class="dopant-cell" data-cell-index="0">
+                  <div class="dopant-cell-header">
+                    <span class="dopant-cell-badge">DOPANT #1 (PRIMARY)</span>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group half">
+                      <label for="dopantElemInput">Dopant Element</label>
+                      <input type="text" id="dopantElemInput" class="dopant-elem-input" placeholder="e.g. Ti">
+                    </div>
+                    <div class="form-group half">
+                      <label for="hostSiteInput">Substituted Site</label>
+                      <input type="text" id="hostSiteInput" class="host-site-input" placeholder="e.g. Fe">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group half">
+                      <label for="dopantFractionInput">Fraction (0–1.0)</label>
+                      <input type="number" id="dopantFractionInput" class="dopant-fraction-input" step="any" min="0" max="1" placeholder="0.05">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <!-- Submit -->
+          <button type="submit" id="runBtn" class="primary-btn">
+            <span class="btn-text">REVIEW FORMULA →</span>
+            <svg class="btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </button>
+        </form>
+
+        <!-- Connected Tools -->
+        <div class="control-section telemetry-section">
+          <label class="section-label">CONNECTED ENGINES</label>
+          <div class="telemetry-grid">
+            <div class="telemetry-item"><span class="telemetry-key">MACE-MP-0:</span><span class="telemetry-val highlight">float64 (medium)</span></div>
+            <div class="telemetry-item"><span class="telemetry-key">COD Database:</span><span class="telemetry-val active">ONLINE</span></div>
+            <div class="telemetry-item"><span class="telemetry-key">CrystaLLM:</span><span class="telemetry-val" id="crystallmStatusVal">Checking...</span></div>
+            <div class="telemetry-item"><span class="telemetry-key">spglib / pymatgen:</span><span class="telemetry-val highlight">Active</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right: Welcome / preview area -->
+      <section class="workspace-panel input-welcome-panel">
+        <div class="welcome-hero">
+          <div class="welcome-crystal-icon">
+            <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+              <polygon points="36 6 6 21 36 36 66 21 36 6" stroke="currentColor" stroke-width="1.5" opacity="0.9"/>
+              <polyline points="6 51 36 66 66 51" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+              <polyline points="6 36 36 51 66 36" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
+              <line x1="6" y1="21" x2="6" y2="51" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+              <line x1="66" y1="21" x2="66" y2="51" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+              <line x1="36" y1="36" x2="36" y2="66" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+            </svg>
+          </div>
+          <h2 class="welcome-title">Crystallographic Structure Pipeline</h2>
+          <p class="welcome-desc">Enter a compound formula (known or unknown) to search databases, generate via CrystaLLM, screen polymorphs, fill symmetry matrices, and check MESP energetics.</p>
+
+          <div class="welcome-flow-steps">
+            <div class="flow-step">
+              <div class="flow-step-num">01</div>
+              <div class="flow-step-label">Input Formula</div>
+            </div>
+            <div class="flow-step-arrow">→</div>
+            <div class="flow-step">
+              <div class="flow-step-num">02</div>
+              <div class="flow-step-label">Review & Confirm</div>
+            </div>
+            <div class="flow-step-arrow">→</div>
+            <div class="flow-step">
+              <div class="flow-step-num">03</div>
+              <div class="flow-step-label">Run Pipeline</div>
+            </div>
+            <div class="flow-step-arrow">→</div>
+            <div class="flow-step">
+              <div class="flow-step-num">04</div>
+              <div class="flow-step-label">Results + Symmetry</div>
+            </div>
+          </div>
+
+          <div class="welcome-info-grid">
+            <div class="welcome-info-card">
+              <div class="wic-icon">🔍</div>
+              <div class="wic-title">Multi-DB Search</div>
+              <div class="wic-desc">MP, OQMD, JARVIS, COD, Internal</div>
+            </div>
+            <div class="welcome-info-card">
+              <div class="wic-icon">🧬</div>
+              <div class="wic-title">CrystaLLM Generation</div>
+              <div class="wic-desc">Novel structures via GPT-2 autoregressive CIF</div>
+            </div>
+            <div class="welcome-info-card">
+              <div class="wic-icon">⚡</div>
+              <div class="wic-title">MACE Relaxation</div>
+              <div class="wic-desc">float64 precision, FIRE optimizer</div>
+            </div>
+            <div class="welcome-info-card">
+              <div class="wic-icon">🔷</div>
+              <div class="wic-title">Symmetry Matrix</div>
+              <div class="wic-desc">Full space group + crystallographic tensor</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PAGE: FORMULA REVIEW
+  ═══════════════════════════════════════════════════════ -->
+  <div id="page-review" class="page-view app-page" style="display:none">
+    <div class="review-container">
+      <div class="review-header-box">
+        <div class="review-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="review-page-title">Formula Review</h2>
+          <p class="review-page-subtitle">Confirm the normalized formula before running the pipeline</p>
+        </div>
+      </div>
+
+      <!-- Normalization Card -->
+      <div class="review-card" id="reviewNormCard">
+        <div class="review-card-label">NORMALIZATION RESULT</div>
+        <div class="review-formula-display">
+          <div class="review-formula-row">
+            <span class="review-label">Raw Input:</span>
+            <span id="reviewRawInput" class="review-value mono">—</span>
+          </div>
+          <div class="review-formula-row">
+            <span class="review-label">Normalized Key:</span>
+            <span id="reviewNormKey" class="review-value mono accent">—</span>
+          </div>
+          <div class="review-formula-row">
+            <span class="review-label">Reduced Formula:</span>
+            <span id="reviewReducedFormula" class="review-value mono">—</span>
+          </div>
+          <div class="review-formula-row" id="reviewMultiplicityRow">
+            <span class="review-label">Multiplicity:</span>
+            <span id="reviewMultiplicity" class="review-value">—</span>
+          </div>
+          <div class="review-formula-row">
+            <span class="review-label">Classification:</span>
+            <span id="reviewClassification" class="review-value">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Elements grid in review -->
+      <div class="review-card" id="reviewElementsCard">
+        <div class="review-card-label">ELEMENT SEARCH SPACE</div>
+        <div id="reviewElementsGrid" class="review-elements-grid">
+          <!-- Filled dynamically -->
+        </div>
+        <div id="reviewBalanceRow" class="review-balance-row">
+          <!-- Balance check result -->
+        </div>
+      </div>
+
+      <!-- Doping spec (if doped) -->
+      <div class="review-card hidden" id="reviewDopingCard">
+        <div class="review-card-label">DOPING SPECIFICATION</div>
+        <div id="reviewDopingDetails" class="review-doping-details">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+
+      <!-- Doping Workflow Multi-Stage Execution Card -->
+      <div class="review-card hidden" id="reviewDopingWorkflowCard">
+        <div class="review-card-label">DOPING EXECUTION PIPELINE STAGES</div>
+        <div class="doping-workflow-steps">
+          <div class="dw-step">
+            <span class="dw-step-num">1</span>
+            <div class="dw-step-info">
+              <strong>Retrieve Parent Host Lattice:</strong> <span id="dwHostFormula" class="highlight">—</span>
+              <span class="dw-step-sub">Resolves pristine host crystal structure from COD / Materials Project / OQMD or CrystaLLM</span>
+            </div>
+          </div>
+          <div class="dw-step">
+            <span class="dw-step-num">2</span>
+            <div class="dw-step-info">
+              <strong>Site-Selective Dopant Substitution:</strong> <span id="dwDopantInfo" class="highlight">—</span>
+              <span class="dw-step-sub">Substitutes target site in lattice and verifies fractional occupancy & local bond distances</span>
+            </div>
+          </div>
+          <div class="dw-step">
+            <span class="dw-step-num">3</span>
+            <div class="dw-step-info">
+              <strong>MACE-MP-0 Relaxation & Symmetry:</strong> <span>float64 Double-Precision Optimization</span>
+              <span class="dw-step-sub">Relaxes substituted supercell with FIRE optimizer and evaluates post-relaxation space group</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="review-actions">
+        <button class="review-back-btn" id="reviewBackBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+          </svg>
+          Back — Change Input
+        </button>
+
+        <div class="review-right-actions">
+          <button class="review-edit-btn" id="reviewEditBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Edit Formula
+          </button>
+          <button class="review-run-btn" id="reviewRunBtn">
+            EXECUTE PIPELINE
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PAGE: PIPELINE RUNNING
+  ═══════════════════════════════════════════════════════ -->
+  <div id="page-pipeline" class="page-view app-page" style="display:none">
+    <div class="pipeline-run-container">
+      <div class="pipeline-run-header">
+        <div class="pipeline-atom-spinner">
+          <div class="atom-orbit orbit-1"></div>
+          <div class="atom-orbit orbit-2"></div>
+          <div class="atom-orbit orbit-3"></div>
+          <div class="atom-nucleus"></div>
+        </div>
+        <div>
+          <h2 id="pipelineRunTitle" class="pipeline-run-title">Executing Pipeline</h2>
+          <p id="pipelineRunSubtitle" class="pipeline-run-subtitle">Querying external databases...</p>
+        </div>
+        <div class="pipeline-run-timer">
+          <span class="timer-label">ELAPSED</span>
+          <span id="overlayTimer" class="pipeline-timer-val">0.00s</span>
+        </div>
+      </div>
+
+      <!-- Live stage ticker -->
+      <div class="pipeline-stages-live" id="pipelineStagesLive">
+        <div class="live-stage" data-stage="0" id="liveStage0">
+          <div class="live-stage-dot pending"></div>
+          <div class="live-stage-content">
+            <div class="live-stage-name">Stage 0 · Classification & Normalization</div>
+            <div class="live-stage-detail">Classifying doped vs undoped; normalizing formula key</div>
+          </div>
+          <div class="live-stage-status">QUEUED</div>
+        </div>
+        <div class="live-stage" data-stage="1" id="liveStage1">
+          <div class="live-stage-dot pending"></div>
+          <div class="live-stage-content">
+            <div class="live-stage-name">Stage 1 · External DB Search (MP / OQMD / JARVIS / COD)</div>
+            <div class="live-stage-detail">Searching across all connected crystallographic databases</div>
+          </div>
+          <div class="live-stage-status">QUEUED</div>
+        </div>
+        <div class="live-stage" data-stage="2" id="liveStage2">
+          <div class="live-stage-dot pending"></div>
+          <div class="live-stage-content">
+            <div class="live-stage-name">Stage 2 · Internal Database Search</div>
+            <div class="live-stage-detail">Checking internal crystallographic record store</div>
+          </div>
+          <div class="live-stage-status">QUEUED</div>
+        </div>
+        <div class="live-stage" data-stage="3" id="liveStage3">
+          <div class="live-stage-dot pending"></div>
+          <div class="live-stage-content">
+            <div class="live-stage-name">Stage 3 · CrystaLLM Generation (if needed)</div>
+            <div class="live-stage-detail">Autoregressive CIF generation + filter_rules screening</div>
+          </div>
+          <div class="live-stage-status">QUEUED</div>
+        </div>
+        <div class="live-stage" data-stage="4" id="liveStage4">
+          <div class="live-stage-dot pending"></div>
+          <div class="live-stage-content">
+            <div class="live-stage-name">Stage 4 · MACE-MP-0 Relaxation & Space Group</div>
+            <div class="live-stage-detail">float64 FIRE optimizer + SpacegroupAnalyzer (post-relaxation)</div>
+          </div>
+          <div class="live-stage-status">QUEUED</div>
+        </div>
+        <div class="live-stage" data-stage="5" id="liveStage5">
+          <div class="live-stage-dot pending"></div>
+          <div class="live-stage-content">
+            <div class="live-stage-name">Stage 5 · Polymorph Screening & Symmetry Matrix</div>
+            <div class="live-stage-detail">Screening polymorphs, filling crystallographic symmetry tensor</div>
+          </div>
+          <div class="live-stage-status">QUEUED</div>
+        </div>
+        <div class="live-stage" data-stage="6" id="liveStage6">
+          <div class="live-stage-dot pending"></div>
+          <div class="live-stage-content">
+            <div class="live-stage-name">Stage 6 · MESP Energy Validation</div>
+            <div class="live-stage-detail">Checking structure relaxation quality and formation energy</div>
+          </div>
+          <div class="live-stage-status">QUEUED</div>
+        </div>
+      </div>
+
+      <!-- Log stream -->
+      <div class="pipeline-log-box">
+        <div class="pipeline-log-header">
+          <span class="log-label">PIPELINE LOG</span>
+          <span class="log-dot-live">● LIVE</span>
+        </div>
+        <div id="pipelineLogStream" class="pipeline-log-stream">
+          <div class="log-line log-info">» Pipeline initialized — awaiting server response...</div>
+        </div>
+      </div>
+
+      <!-- Pipeline Failure Recovery Card -->
+      <div id="pipelineFailureCard" class="pipeline-failure-card hidden">
+        <div class="failure-header">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <span id="pipelineFailureTitle" class="failure-title">Pipeline Step Failed</span>
+        </div>
+        <p id="pipelineFailureMsg" class="failure-msg"></p>
+        <div class="failure-actions">
+          <button type="button" id="failureBackBtn" class="secondary-btn">← Back to Review / Edit</button>
+          <button type="button" id="failureRetryBtn" class="primary-btn">Retry Pipeline</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PAGE: RESULTS
+  ═══════════════════════════════════════════════════════ -->
+  <div id="page-results" class="page-view app-page" style="display:none">
+    <main class="app-main results-main">
+      <!-- Left sidebar: result controls -->
+      <aside class="sidebar-panel results-sidebar">
+        <!-- Result header summary -->
+        <div class="result-summary-card">
+          <div class="result-badges">
+            <span id="formulaBadge" class="badge formula-badge">Fe2O3</span>
+            <span id="sourceBadge" class="badge source-badge">COD</span>
+            <span id="spaceGroupBadge" class="badge sg-badge">SG: —</span>
+            <span id="statusBadge" class="badge status-badge success">VALIDATED</span>
+          </div>
+
+          <!-- Provenance -->
+          <div class="prov-grid">
+            <div class="prov-row"><span class="prov-label">SOURCE:</span><strong id="provSourceVal" class="prov-val">—</strong></div>
+            <div class="prov-row"><span class="prov-label">CrystaLLM:</span><strong id="provCrystaLLMVal" class="prov-val muted">No</strong></div>
+            <div class="prov-row"><span class="prov-label">DURATION:</span><strong id="provDurationVal" class="prov-val">—</strong></div>
+          </div>
+
+          <div class="result-action-row">
+            <button id="copyCifBtn" class="secondary-btn" title="Copy CIF">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copy CIF
+            </button>
+            <button id="downloadCifBtn" class="secondary-btn primary-sub" title="Download .cif">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Download .cif
+            </button>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px">
+            <button class="new-search-btn" id="backToReviewBtn" style="background:var(--bg-tertiary); color:var(--text-primary); border:1px solid var(--border-subtle)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+              </svg>
+              ← Back to Review / Edit
+            </button>
+            <button class="new-search-btn" id="newSearchBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              New Search
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right: workspace with tabs -->
+      <section class="workspace-panel">
+        <!-- Workspace Tabs -->
+        <nav class="workspace-tabs">
+          <button class="tab-btn active" data-tab="visualizerTab">3D Crystal View</button>
+          <button class="tab-btn" data-tab="cifTab">CIF Source</button>
+          <button class="tab-btn" data-tab="symmetryTab">Symmetry Matrix</button>
+          <button class="tab-btn" data-tab="mespTab">MESP Check</button>
+          <button class="tab-btn" data-tab="timelineTab">Pipeline Timeline</button>
+          <button class="tab-btn" data-tab="traceTab">Trace & Diagnostics</button>
+          <button class="tab-btn" data-tab="candidatesTab">Polymorphs (<span id="candidateCount">0</span>)</button>
+        </nav>
+
+        <div class="tab-content-area">
+          <!-- Tab 1: 3D Visualizer -->
+          <div id="visualizerTab" class="tab-pane active">
+            <div class="visualizer-wrapper">
+              <div id="molViewer" class="mol-viewer"></div>
+              <div class="viewer-controls">
+                <button id="resetViewBtn" class="control-btn">Reset View</button>
+                <button id="spinToggleBtn" class="control-btn">Spin</button>
+                <button id="unitCellToggleBtn" class="control-btn active">Unit Cell</button>
+                <select id="styleSelect" class="control-select">
+                  <option value="ballAndStick">Ball & Stick</option>
+                  <option value="sphere">Space-Filling</option>
+                  <option value="stick">Stick Wireframe</option>
+                </select>
+              </div>
+              <div class="viewer-legend">
+                <span id="crystalTitleLegend" class="legend-title">Crystal Viewer</span>
+                <span class="legend-note">Click & Drag · Scroll Zoom · Right-click Pan</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: CIF Source -->
+          <div id="cifTab" class="tab-pane">
+            <div class="cif-container">
+              <div class="cif-header-actions">
+                <span id="cifLineCount" class="cif-meta">Lines: —</span>
+                <span id="cifFormulaMeta" class="cif-meta">Formula: —</span>
+              </div>
+              <pre><code id="cifCodeBlock" class="cif-code">No CIF generated yet.</code></pre>
+            </div>
+          </div>
+
+          <!-- Tab 3: Symmetry Matrix -->
+          <div id="symmetryTab" class="tab-pane">
+            <div class="symmetry-container">
+              <div class="symmetry-header-row">
+                <h3 class="sym-title">Crystallographic Symmetry Analysis</h3>
+                <div class="sym-badges">
+                  <span id="symSpaceGroupBadge" class="sym-badge">SG: —</span>
+                  <span id="symCrystalSystemBadge" class="sym-badge">System: —</span>
+                  <span id="symPointGroupBadge" class="sym-badge">Point: —</span>
+                </div>
+              </div>
+
+              <div class="sym-grid">
+                <!-- Lattice parameters -->
+                <div class="sym-card">
+                  <div class="sym-card-label">LATTICE PARAMETERS</div>
+                  <div id="latticeParamsGrid" class="lattice-params-grid">
+                    <!-- Filled dynamically: a, b, c, α, β, γ, V -->
+                  </div>
+                </div>
+
+                <!-- Space group info -->
+                <div class="sym-card">
+                  <div class="sym-card-label">SPACE GROUP INFORMATION</div>
+                  <div id="spaceGroupInfoGrid" class="sg-info-grid">
+                    <!-- Filled dynamically -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Symmetry operations matrix -->
+              <div class="sym-card sym-card-full">
+                <div class="sym-card-label">SYMMETRY OPERATIONS (Rotation Matrices)</div>
+                <div id="symmetryOpsContainer" class="sym-ops-container">
+                  <div class="sym-ops-placeholder">Run pipeline to display symmetry operations</div>
+                </div>
+              </div>
+
+              <!-- Wyckoff positions -->
+              <div class="sym-card sym-card-full">
+                <div class="sym-card-label">WYCKOFF POSITIONS & SITE OCCUPANCY</div>
+                <div id="wyckoffTable" class="wyckoff-table">
+                  <div class="sym-ops-placeholder">Wyckoff positions will appear after structure retrieval</div>
+                </div>
+              </div>
+
+              <!-- Polymorph screening results -->
+              <div class="sym-card sym-card-full" id="polymorphScreenCard">
+                <div class="sym-card-label">POLYMORPH SCREENING</div>
+                <div id="polymorphScreenResult" class="polymorph-screen-result">
+                  <div class="sym-ops-placeholder">Polymorph screening runs after pipeline completes</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 4: MESP Check -->
+          <div id="mespTab" class="tab-pane">
+            <div class="mesp-container">
+              <div class="mesp-header-row">
+                <h3 class="mesp-title">MESP Energy & Structure Validation</h3>
+                <span id="mespStatusBadge" class="mesp-status-badge">NOT RUN</span>
+              </div>
+
+              <div class="mesp-grid">
+                <div class="mesp-card" id="mespEnergyCard">
+                  <div class="mesp-card-label">ENERGY METRICS</div>
+                  <div id="mespEnergyContent" class="mesp-content">
+                    <div class="mesp-placeholder">Energy data will appear after pipeline completes</div>
+                  </div>
+                </div>
+                <div class="mesp-card" id="mespRelaxCard">
+                  <div class="mesp-card-label">RELAXATION QUALITY</div>
+                  <div id="mespRelaxContent" class="mesp-content">
+                    <div class="mesp-placeholder">Relaxation metrics will appear after pipeline completes</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mesp-card mesp-card-full" id="mespValidationCard">
+                <div class="mesp-card-label">STRUCTURE VALIDITY CHECKLIST</div>
+                <div id="mespChecklist" class="mesp-checklist">
+                  <!-- Filled dynamically -->
+                </div>
+              </div>
+
+              <div class="mesp-card mesp-card-full" id="mespScriptCard">
+                <div class="mesp-card-label">MESP VALIDATION SCRIPT</div>
+                <pre class="mesp-script-block"><code id="mespScriptCode">Loading MESP check script...</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 5: Pipeline Timeline -->
+          <div id="timelineTab" class="tab-pane">
+            <div class="timeline-container">
+              <div class="timeline-card">
+                <h4>Pipeline Execution Stepper</h4>
+                <div id="pipelineStepper" class="pipeline-stepper"></div>
+              </div>
+              <div class="timeline-card">
+                <h4>Tools & Libraries Utilized</h4>
+                <div id="toolsListContainer" class="tools-grid"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 6: Trace & Diagnostics -->
+          <div id="traceTab" class="tab-pane">
+            <div class="trace-container">
+              <div class="trace-card">
+                <h4>Classification & Formula Normalization</h4>
+                <div id="normTraceDetails" class="trace-details">
+                  <p><strong>Raw Input:</strong> <span id="traceRawInput">—</span></p>
+                  <p><strong>Search Key:</strong> <span id="traceSearchKey">—</span></p>
+                  <p><strong>Is Doped:</strong> <span id="traceIsDoped">—</span></p>
+                  <p><strong>Classification:</strong> <span id="traceReasoning">—</span></p>
+                  <p><strong>Multiplicity:</strong> <span id="traceMultiplicity">—</span></p>
+                </div>
+              </div>
+              <div class="trace-card">
+                <h4>Relaxation & Validation Metrics</h4>
+                <div id="relaxationDetails" class="trace-details">
+                  <p><strong>Precision:</strong> <span class="highlight">float64 (IEEE 754)</span></p>
+                  <p><strong>Pipeline Notes:</strong> <span id="traceNotes">—</span></p>
+                  <p><strong>Doped Validation:</strong> <span id="traceDopedVal">N/A</span></p>
+                </div>
+              </div>
+              <div id="diagnosticsHistoryCard" class="trace-card hidden">
+                <h4>Generation Feedback Loop History</h4>
+                <div id="diagnosticsList" class="diagnostics-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 7: Polymorphs -->
+          <div id="candidatesTab" class="tab-pane">
+            <div class="candidates-container">
+              <div class="candidates-intro">
+                <p>All verified structural polymorphs retrieved for this composition. Click <strong>"Visualize in 3D"</strong> to load any polymorph.</p>
+              </div>
+              <div id="candidatesGrid" class="candidates-grid"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PAGE: SUBJECTS OVERVIEW
+  ═══════════════════════════════════════════════════════ -->
+  <div id="page-subjects" class="page-view app-page" style="display:none">
+    <div class="subjects-container">
+      <div class="subjects-header">
+        <h2>Pipeline Subjects & Knowledge Base</h2>
+        <p>Reference guides for each scientific domain in the CIF pipeline</p>
+      </div>
+      <div class="subjects-grid">
+        <a class="subject-card" href="subjects.html" target="_blank">
+          <div class="subject-icon">🔷</div>
+          <div class="subject-title">Crystallography Fundamentals</div>
+          <div class="subject-desc">Space groups, symmetry, unit cells, Wyckoff positions, crystal systems</div>
+          <div class="subject-link">Open Guide →</div>
+        </a>
+        <a class="subject-card" href="plan.html" target="_blank">
+          <div class="subject-icon">📋</div>
+          <div class="subject-title">Implementation Plan</div>
+          <div class="subject-desc">Full pipeline architecture, stage-by-stage design decisions and edge cases</div>
+          <div class="subject-link">Open Plan →</div>
+        </a>
+        <a class="subject-card" href="on_source.html" target="_blank">
+          <div class="subject-icon">🗄️</div>
+          <div class="subject-title">On-Source Entries</div>
+          <div class="subject-desc">Internal database entries, manually curated structures and records</div>
+          <div class="subject-link">Open Database →</div>
+        </a>
+        <a class="subject-card" href="other_source.html" target="_blank">
+          <div class="subject-icon">🌐</div>
+          <div class="subject-title">External Sources</div>
+          <div class="subject-desc">MP, OQMD, JARVIS, COD — external database reference and status</div>
+          <div class="subject-link">Open External DB →</div>
+        </a>
+        <a class="subject-card" href="mother_compound.html" target="_blank">
+          <div class="subject-icon">🧲</div>
+          <div class="subject-title">Mother Compound</div>
+          <div class="subject-desc">Parent lattice reference structures for doping workflows</div>
+          <div class="subject-link">Open Mother Compounds →</div>
+        </a>
+        <a class="subject-card" href="manual_entries.html" target="_blank">
+          <div class="subject-icon">✏️</div>
+          <div class="subject-title">Manual Entries Verification</div>
+          <div class="subject-desc">Check manual batch entries, validate each case against pipeline output</div>
+          <div class="subject-link">Open Verification →</div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PAGE: BATCH PROCESSING
+  ═══════════════════════════════════════════════════════ -->
+  <div id="page-batch" class="page-view app-page" style="display:none">
+    <div class="batch-container">
+      <div class="batch-header">
+        <h2>Batch Processing</h2>
+        <p>Process multiple compounds at once · Generate .dat files for all cases</p>
+      </div>
+
+      <div class="batch-main-grid">
+        <!-- Batch input -->
+        <div class="batch-input-panel">
+          <div class="batch-section-label">BATCH FORMULA INPUT</div>
+          <textarea id="batchFormulaInput" class="batch-textarea" placeholder="Enter one formula per line:&#10;Fe2O3&#10;TiO2&#10;NaCl&#10;Al2O3&#10;La0.7Sr0.3MnO3, x=0.3, doped&#10;..."></textarea>
+          <div class="batch-controls">
+            <button id="batchLoadDatBtn" class="secondary-btn">Load from .dat</button>
+            <button id="batchRunBtn" class="primary-btn">Run Batch</button>
+          </div>
+          <div class="batch-section-label" style="margin-top:16px">BATCH OPTIONS</div>
+          <div class="batch-options-grid">
+            <label class="batch-option"><input type="checkbox" id="batchSaveDat" checked> Save .dat files</label>
+            <label class="batch-option"><input type="checkbox" id="batchSaveCif" checked> Export CIF files</label>
+            <label class="batch-option"><input type="checkbox" id="batchRunMesp"> Run MESP check</label>
+            <label class="batch-option"><input type="checkbox" id="batchPolymorph"> Screen polymorphs</label>
+          </div>
+        </div>
+
+        <!-- Batch status -->
+        <div class="batch-status-panel">
+          <div class="batch-section-label">BATCH STATUS</div>
+          <div class="batch-progress-bar-container">
+            <div id="batchProgressBar" class="batch-progress-bar" style="width:0%"></div>
+          </div>
+          <div class="batch-counters">
+            <div class="batch-counter"><span id="batchTotal">0</span><span>Total</span></div>
+            <div class="batch-counter ok"><span id="batchDone">0</span><span>Done</span></div>
+            <div class="batch-counter warn"><span id="batchFailed">0</span><span>Failed</span></div>
+          </div>
+          <div id="batchResultsList" class="batch-results-list">
+            <div class="batch-empty-state">No batch results yet — enter formulas and run.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- .dat files panel -->
+      <div class="dat-files-panel">
+        <div class="batch-section-label">GENERATED .DAT FILES</div>
+        <div class="dat-files-grid" id="datFilesGrid">
+          <div class="dat-file-card" onclick="window.open('/data/compound_classes.dat')">
+            <div class="dat-file-icon">📄</div>
+            <div class="dat-file-name">compound_classes.dat</div>
+            <div class="dat-file-desc">All compound type classifications (oxide, halide, sulfide...)</div>
+          </div>
+          <div class="dat-file-card" onclick="window.open('/data/symmetry_groups.dat')">
+            <div class="dat-file-icon">📄</div>
+            <div class="dat-file-name">symmetry_groups.dat</div>
+            <div class="dat-file-desc">Space group reference table — number, H-M symbol, crystal system</div>
+          </div>
+          <div class="dat-file-card" onclick="window.open('/data/polymorph_cases.dat')">
+            <div class="dat-file-icon">📄</div>
+            <div class="dat-file-name">polymorph_cases.dat</div>
+            <div class="dat-file-desc">Known polymorph cases for test bench compounds</div>
+          </div>
+          <div class="dat-file-card" onclick="window.open('/data/mesp_cases.dat')">
+            <div class="dat-file-icon">📄</div>
+            <div class="dat-file-name">mesp_cases.dat</div>
+            <div class="dat-file-desc">MESP energy/relaxation validation cases and expected outcomes</div>
+          </div>
+          <div class="dat-file-card" onclick="window.open('/data/batch_test_cases.dat')">
+            <div class="dat-file-icon">📄</div>
+            <div class="dat-file-name">batch_test_cases.dat</div>
+            <div class="dat-file-desc">Full 10-material test bench with expected pipeline outcomes</div>
+          </div>
+          <div class="dat-file-card" onclick="window.open('/data/doping_cases.dat')">
+            <div class="dat-file-icon">📄</div>
+            <div class="dat-file-name">doping_cases.dat</div>
+            <div class="dat-file-desc">Doping specification cases — single, co-doped, fractional notation</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

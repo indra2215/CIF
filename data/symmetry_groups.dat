@@ -1,0 +1,19 @@
+# ==============================================================================
+# CIF ARCHITECT v2.0 — Crystallographic Space Group & Symmetry Matrix (.dat)
+# Format: IT_Number  H_M_Symbol  CrystalSystem  LaueClass  PointGroup  Multiplicity
+# ==============================================================================
+1     P1           Triclinic      -1         1           1
+2     P-1          Triclinic      -1         -1          2
+14    P2_1/c       Monoclinic     2/m        2/m         4
+15    C2/c         Monoclinic     2/m        2/m         8
+62    Pnma         Orthorhombic   mmm        mmm         8
+63    Cmcm         Orthorhombic   mmm        mmm         16
+136   P4_2/mnm     Tetragonal     4/mmm      4/mmm       16
+141   I4_1/amd     Tetragonal     4/mmm      4/mmm       32
+167   R-3c         Trigonal       -3m        -3m         36
+186   P6_3mc       Hexagonal      6/mmm      6mm         12
+194   P6_3/mmc     Hexagonal      6/mmm      6/mmm       24
+216   F-43m        Cubic          m-3m       -43m        96
+225   Fm-3m        Cubic          m-3m       m-3m        192
+227   Fd-3m        Cubic          m-3m       m-3m        192
+# EOF

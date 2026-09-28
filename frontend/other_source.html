@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Other-Source & External DB // CIF ARCHITECT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-body">
+
+  <header class="app-header">
+    <div class="header-left">
+      <a href="index.html" class="header-logo-btn" style="text-decoration:none">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-title">CIF ARCHITECT</div>
+          <div class="logo-subtitle">Secondary & External Repositories</div>
+        </div>
+      </a>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-pill">← Main App</a>
+      <a href="subjects.html" class="nav-pill">Subjects</a>
+      <a href="plan.html" class="nav-pill">Plan</a>
+      <a href="on_source.html" class="nav-pill">On-Source</a>
+      <a href="other_source.html" class="nav-pill active">Other-Source</a>
+      <a href="mother_compound.html" class="nav-pill">Mother Compound</a>
+      <a href="manual_entries.html" class="nav-pill">Manual Entries</a>
+      <a href="batch.html" class="nav-pill">Batch Run</a>
+    </nav>
+  </header>
+
+  <main class="page-container">
+    <div class="page-hero">
+      <span class="page-tag">SECONDARY & GENERATIVE CHANNELS</span>
+      <h1 class="page-title">Other-Source Repositories & CrystaLLM Fallback</h1>
+      <p class="page-desc">Tier-2 and tier-3 structure resolution when on-source entries do not match: Crystallography Open Database (COD), AFLOW, OQMD, and CrystaLLM generative models.</p>
+    </div>
+
+    <div class="grid-cards">
+      <div class="feature-card">
+        <div class="feature-icon">🌐</div>
+        <h3>Crystallography Open Database (COD)</h3>
+        <p>Over 500,000 experimental crystal structures from peer-reviewed literature. Queried via SQL and HTTP REST when theoretical DFT models require experimental cross-validation.</p>
+        <div class="meta-row"><span>Type: Experimental</span><span class="card-badge">COD #ID</span></div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>AFLOW & OQMD Federations</h3>
+        <p>High-throughput automated computational materials databases. Used as secondary fallback when stoichiometric variants or unusual pressure/temperature phases are queried.</p>
+        <div class="meta-row"><span>Type: High-Throughput</span><span class="card-badge">Federated</span></div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>CrystaLLM Autoregressive Generator</h3>
+        <p>Transformer-based generative model generating valid CIF text directly for novel, unindexed, or hypothetical compounds with looping validation and MACE-MP-0 relaxation.</p>
+        <div class="meta-row"><span>Type: Generative AI</span><span class="card-badge">CrystaLLM</span></div>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <h2>Secondary & Fallback Routing Matrix</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Priority</th>
+            <th>Source Tier</th>
+            <th>Protocol</th>
+            <th>Validation Check</th>
+            <th>Failover Strategy</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Materials Project</td><td>REST v2 (MP-API)</td><td>E_hull, Spacegroup</td><td>Fallback to COD</td></tr>
+          <tr><td>2</td><td>COD (Open DB)</td><td>HTTP REST / SQL</td><td>R-factor, Occupancies</td><td>Fallback to AFLOW/OQMD</td></tr>
+          <tr><td>3</td><td>AFLOW / OQMD</td><td>AFLUX Query</td><td>Thermodynamic Enthalpy</td><td>Fallback to CrystaLLM</td></tr>
+          <tr><td>4</td><td>CrystaLLM Engine</td><td>Autoregressive LM</td><td>pymatgen + MACE float64</td><td>Human Review / Manual</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+</body>
+</html>

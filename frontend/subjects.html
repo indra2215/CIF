@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subjects Overview // CIF ARCHITECT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-body">
+
+  <header class="app-header">
+    <div class="header-left">
+      <a href="index.html" class="header-logo-btn" style="text-decoration:none">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-title">CIF ARCHITECT</div>
+          <div class="logo-subtitle">Subject Overview & Material Classes</div>
+        </div>
+      </a>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-pill">← Main App</a>
+      <a href="subjects.html" class="nav-pill active">Subjects</a>
+      <a href="plan.html" class="nav-pill">Plan</a>
+      <a href="on_source.html" class="nav-pill">On-Source</a>
+      <a href="other_source.html" class="nav-pill">Other-Source</a>
+      <a href="mother_compound.html" class="nav-pill">Mother Compound</a>
+      <a href="manual_entries.html" class="nav-pill">Manual Entries</a>
+      <a href="batch.html" class="nav-pill">Batch Run</a>
+    </nav>
+  </header>
+
+  <main class="page-container">
+    <div class="page-hero">
+      <span class="page-tag">CURRICULUM & CLASSIFICATION</span>
+      <h1 class="page-title">Crystallography Subject & Material Classes</h1>
+      <p class="page-desc">Comprehensive matrix of 10 benchmark material classes, crystal symmetry systems, Wyckoff coordinates, and MESP relaxation principles.</p>
+    </div>
+
+    <div class="grid-cards">
+      <div class="feature-card">
+        <div class="feature-icon">💎</div>
+        <h3>1. Corundum & Trigonal Oxides</h3>
+        <p>Compounds such as <strong>Fe₂O₃</strong> (Hematite) and <strong>Al₂O₃</strong> crystallize in space group <em>R-3c</em> (#167). Cations occupy octahedral Wyckoff 12c sites, while oxygen anions occupy 18e positions. High hardness, magnetic exchange splitting, and stable ground states.</p>
+        <span class="card-badge">Space Group #167</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>2. Doped Solid Solutions & Substitutions</h3>
+        <p>Substitutional solid solutions like <strong>Fe₁.₉Ti₀.₁O₃</strong> or co-doped <strong>Fe₁.₈₅Ti₀.₁Cr₀.₀₅O₃</strong> preserve the host parent lattice while modifying local ligand field splitting and dielectric response. Evaluated via supercell expansion (2x2x2 or 3x3x1) and MACE-MP-0 float64.</p>
+        <span class="card-badge">Doped Systems</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <h3>3. Polymorphic Systems</h3>
+        <p>Compounds exhibiting multiple allotropic phases such as <strong>TiO₂</strong> (Rutile <em>P4₂/mnm</em> vs Anatase <em>I4₁/amd</em> vs Brookite <em>Pbca</em>) and <strong>C</strong> (Graphite vs Diamond). The pipeline performs polymorphism screening, stability ranking, and relative ΔE comparison.</p>
+        <span class="card-badge">Polymorphism</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🧂</div>
+        <h3>4. Rock-Salt & Fluorite Halides</h3>
+        <p>Includes <strong>NaCl</strong> (Rock-salt, <em>Fm-3m</em>, 6:6 coordination) and <strong>CaF₂</strong> (Fluorite, <em>Fm-3m</em>, 8:4 coordination). Highly symmetric ionic lattices characterized by sharp Madelung potentials and minimal relaxation displacement.</p>
+        <span class="card-badge">Fm-3m Face-Centered</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">💻</div>
+        <h3>5. Diamond & Elemental Semiconductors</h3>
+        <p>Elemental systems such as <strong>Si</strong> (<em>Fd-3m</em>, diamond cubic) and <strong>Cu</strong> (<em>Fm-3m</em>, FCC). Serves as baseline calibration standards for atomic radii, lattice parameter accuracy, and pseudo-potential cutoff verification.</p>
+        <span class="card-badge">Group IV / Metals</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🥞</div>
+        <h3>6. 2D Dichalcogenides & Wurtzite</h3>
+        <p>Layered transition metal dichalcogenides (<strong>MoS₂</strong>, <em>P6₃/mmc</em>) with van der Waals interlayer gaps, and non-centrosymmetric semiconductors (<strong>ZnO</strong>, <em>P6₃mc</em> wurtzite) with intrinsic spontaneous polarization.</p>
+        <span class="card-badge">Layered & Polar</span>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <h2>Pipeline Classification Logic</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Class ID</th>
+            <th>Material System</th>
+            <th>Benchmark Formula</th>
+            <th>Space Group</th>
+            <th>Coordination</th>
+            <th>MESP Stability</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Binary Oxide</td><td>Fe₂O₃</td><td>R-3c (#167)</td><td>6:4 Octahedral</td><td>-5.84 eV/atom</td></tr>
+          <tr><td>2</td><td>Doped Solid Solution</td><td>Fe₁.₉Ti₀.₁O₃</td><td>R-3c (#167)</td><td>Substitutional 12c</td><td>-5.79 eV/atom</td></tr>
+          <tr><td>3</td><td>Co-Doped Oxide</td><td>Fe₁.₈₅Ti₀.₁Cr₀.₀₅O₃</td><td>R-3c (#167)</td><td>Dual-site 12c</td><td>-5.76 eV/atom</td></tr>
+          <tr><td>4</td><td>Polymorphic Oxide</td><td>TiO₂ (Rutile)</td><td>P4₂/mnm (#136)</td><td>6:3 Distorted</td><td>-7.85 eV/atom</td></tr>
+          <tr><td>5</td><td>Alkali Halide</td><td>NaCl</td><td>Fm-3m (#225)</td><td>6:6 Cubic</td><td>-3.21 eV/atom</td></tr>
+          <tr><td>6</td><td>Diamond Semiconductor</td><td>Si</td><td>Fd-3m (#227)</td><td>4:4 Tetrahedral</td><td>-4.63 eV/atom</td></tr>
+          <tr><td>7</td><td>FCC Metal</td><td>Cu</td><td>Fm-3m (#225)</td><td>12:12 Close-packed</td><td>-3.72 eV/atom</td></tr>
+          <tr><td>8</td><td>Corundum Rhombohedral</td><td>Al₂O₃</td><td>R-3c (#167)</td><td>6:4 Octahedral</td><td>-7.15 eV/atom</td></tr>
+          <tr><td>9</td><td>Layered 2D Chalcogenide</td><td>MoS₂</td><td>P6₃/mmc (#194)</td><td>6:3 Trigonal Prismatic</td><td>-5.42 eV/atom</td></tr>
+          <tr><td>10</td><td>Wurtzite II-VI</td><td>ZnO</td><td>P6₃mc (#186)</td><td>4:4 Tetrahedral</td><td>-4.32 eV/atom</td></tr>
+          <tr><td>11</td><td>Alkaline-Earth Halide</td><td>CaF₂</td><td>Fm-3m (#225)</td><td>8:4 Cubic/Tetrahedral</td><td>-5.91 eV/atom</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,4 @@
+[submodule "crystallm_repo"]
+	path = crystallm_repo
+	url = https://github.com/lantunes/CrystaLLM.git
+	ignore = untracked

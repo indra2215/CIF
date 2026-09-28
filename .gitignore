@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments & Keys
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# Large model checkpoints and weights (>100MB exceeds GitHub limit)
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.tar.gz
+*.tar
+crystallm_repo/models/
+*.zip
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

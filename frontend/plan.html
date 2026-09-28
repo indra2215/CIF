@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Implementation Plan // CIF ARCHITECT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-body">
+
+  <header class="app-header">
+    <div class="header-left">
+      <a href="index.html" class="header-logo-btn" style="text-decoration:none">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-title">CIF ARCHITECT</div>
+          <div class="logo-subtitle">Master Architecture & Implementation Plan</div>
+        </div>
+      </a>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-pill">← Main App</a>
+      <a href="subjects.html" class="nav-pill">Subjects</a>
+      <a href="plan.html" class="nav-pill active">Plan</a>
+      <a href="on_source.html" class="nav-pill">On-Source</a>
+      <a href="other_source.html" class="nav-pill">Other-Source</a>
+      <a href="mother_compound.html" class="nav-pill">Mother Compound</a>
+      <a href="manual_entries.html" class="nav-pill">Manual Entries</a>
+      <a href="batch.html" class="nav-pill">Batch Run</a>
+    </nav>
+  </header>
+
+  <main class="page-container">
+    <div class="page-hero">
+      <span class="page-tag">TECHNICAL ARCHITECTURE ROADMAP</span>
+      <h1 class="page-title">Implementation Plan & System Specifications</h1>
+      <p class="page-desc">Complete end-to-end execution flow from login authentication and element balance to MACE-MP-0 float64 relaxation, CrystaLLM generative fallbacks, and scientific .dat export.</p>
+    </div>
+
+    <div class="plan-steps-timeline">
+      <div class="step-card">
+        <div class="step-number">01</div>
+        <div class="step-body">
+          <h3>Authentication & Environment Gate</h3>
+          <p>Secure login splash view validating user credentials before mounting the crystallographic workspace. Detects local GPU/CPU hardware and verifies MACE-MP-0 model checkpoint readiness.</p>
+          <div class="step-meta"><span>Status: COMPLETED</span><span>Security: JWT + Session Token</span></div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">02</div>
+        <div class="step-body">
+          <h3>Interactive Element Input & Stoichiometry Balancer</h3>
+          <p>Real-time compositional breakdown into atomic weight fractions, element cards, valence charge checks, and invalid input clearing. Allows instant reset and formula undo.</p>
+          <div class="step-meta"><span>Status: COMPLETED</span><span>Engine: pymatgen Composition</span></div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">03</div>
+        <div class="step-body">
+          <h3>Formula Review & Search Directing Stage</h3>
+          <p>Redirects user to an explicit review modal: "I am searching for this formula [Fe₂O₃]". Offers options to Confirm & Run Pipeline, Change formula, or Go Back to adjust dopant fractions.</p>
+          <div class="step-meta"><span>Status: COMPLETED</span><span>Interaction: Multi-action Routing</span></div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">04</div>
+        <div class="step-body">
+          <h3>High-Performance Pipeline Execution</h3>
+          <p>Animated execution stages displaying live progress: Classification → Database Lookup (MP / COD / AFLOW) → Doping Transformation → CrystaLLM Generative Fallback → MACE-MP-0 float64 Relaxation.</p>
+          <div class="step-meta"><span>Status: COMPLETED</span><span>Precision: float64 Double Precision</span></div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">05</div>
+        <div class="step-body">
+          <h3>Polymorphism Screening & Symmetry Matrix</h3>
+          <p>Evaluates polymorph stability ranking (e.g. Anatase vs Rutile). Computes full 3x3 metric tensor, Cartesian rotation matrices, translation vectors, and Wyckoff site table.</p>
+          <div class="step-meta"><span>Status: COMPLETED</span><span>Spacegroup: SpacegroupAnalyzer</span></div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">06</div>
+        <div class="step-body">
+          <h3>MESP Calculation & Scientific .dat Export</h3>
+          <p>Verifies electrostatic charge balance, net deviation, bond valence sums, and generates auto-executable Python validation scripts. Emits benchmark tables to scientific .dat files.</p>
+          <div class="step-meta"><span>Status: COMPLETED</span><span>Outputs: .dat Formats</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>

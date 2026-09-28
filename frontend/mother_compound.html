@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mother Compound & Doping // CIF ARCHITECT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-body">
+
+  <header class="app-header">
+    <div class="header-left">
+      <a href="index.html" class="header-logo-btn" style="text-decoration:none">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-title">CIF ARCHITECT</div>
+          <div class="logo-subtitle">Mother Compounds & Doping Geometry</div>
+        </div>
+      </a>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-pill">← Main App</a>
+      <a href="subjects.html" class="nav-pill">Subjects</a>
+      <a href="plan.html" class="nav-pill">Plan</a>
+      <a href="on_source.html" class="nav-pill">On-Source</a>
+      <a href="other_source.html" class="nav-pill">Other-Source</a>
+      <a href="mother_compound.html" class="nav-pill active">Mother Compound</a>
+      <a href="manual_entries.html" class="nav-pill">Manual Entries</a>
+      <a href="batch.html" class="nav-pill">Batch Run</a>
+    </nav>
+  </header>
+
+  <main class="page-container">
+    <div class="page-hero">
+      <span class="page-tag">LATTICE TRANSFORMATION & SUPERCELLS</span>
+      <h1 class="page-title">Mother Compounds & Wyckoff Site Substitution</h1>
+      <p class="page-desc">Automated parent lattice identification, Wyckoff site mapping, fractional substitution, and supercell scaling for single and co-doped crystalline systems.</p>
+    </div>
+
+    <div class="grid-cards">
+      <div class="feature-card">
+        <div class="feature-icon">🧬</div>
+        <h3>Parent Lattice Identification</h3>
+        <p>Formulas like <code>Fe1.9Ti0.1O3</code> are automatically decomposed into parent host (<code>Fe2O3</code>), dopant (<code>Ti</code>), target site (<code>Fe</code>), and substitution fraction (<code>x = 0.05</code>).</p>
+        <span class="card-badge">Decomposition</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📐</div>
+        <h3>Supercell Scaling Algorithm</h3>
+        <p>To accommodate fractional stoichiometry, the pipeline computes minimal bounding integer supercell dimensions (e.g. 2×2×2 or 3×3×1) ensuring fractional site occupancy without cell rupture.</p>
+        <span class="card-badge">Supercell (N×M×K)</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🔬</div>
+        <h3>Multi-Dopant Co-Substitution</h3>
+        <p>Supports multiple simultaneous dopants (e.g. Ti⁴⁺ and Cr³⁺ in Fe₂O₃). Evaluates charge compensation, local bond length distention, and MACE-MP-0 float64 ionic relaxation.</p>
+        <span class="card-badge">Co-Doping</span>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <h2>Doping Substitution Rules Matrix</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Mother Compound</th>
+            <th>Space Group</th>
+            <th>Substituted Site</th>
+            <th>Primary Dopant</th>
+            <th>Co-Dopant</th>
+            <th>Target Compound</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Fe₂O₃</td><td>R-3c (#167)</td><td>Fe (12c)</td><td>Ti⁴⁺ (5.0%)</td><td>None</td><td>Fe₁.₉Ti₀.₁O₃</td></tr>
+          <tr><td>Fe₂O₃</td><td>R-3c (#167)</td><td>Fe (12c)</td><td>Ti⁴⁺ (5.0%)</td><td>Cr³⁺ (2.5%)</td><td>Fe₁.₈₅Ti₀.₁Cr₀.₀₅O₃</td></tr>
+          <tr><td>TiO₂</td><td>P4₂/mnm (#136)</td><td>Ti (2a)</td><td>Nb⁵⁺ (3.0%)</td><td>None</td><td>Ti₀.₉₇Nb₀.₀₃O₂</td></tr>
+          <tr><td>ZnO</td><td>P6₃mc (#186)</td><td>Zn (2b)</td><td>Al³⁺ (2.0%)</td><td>None</td><td>Zn₀.₉₈Al₀.₀₂O</td></tr>
+          <tr><td>Al₂O₃</td><td>R-3c (#167)</td><td>Al (12c)</td><td>Cr³⁺ (1.0%)</td><td>None</td><td>Al₁.₉₈Cr₀.₀₂O₃ (Ruby)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+</body>
+</html>

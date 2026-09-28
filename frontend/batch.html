@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batch Processing & .DAT Export // CIF ARCHITECT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-body">
+
+  <header class="app-header">
+    <div class="header-left">
+      <a href="index.html" class="header-logo-btn" style="text-decoration:none">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-title">CIF ARCHITECT</div>
+          <div class="logo-subtitle">Batch Processing & .DAT Exports</div>
+        </div>
+      </a>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-pill">← Main App</a>
+      <a href="subjects.html" class="nav-pill">Subjects</a>
+      <a href="plan.html" class="nav-pill">Plan</a>
+      <a href="on_source.html" class="nav-pill">On-Source</a>
+      <a href="other_source.html" class="nav-pill">Other-Source</a>
+      <a href="mother_compound.html" class="nav-pill">Mother Compound</a>
+      <a href="manual_entries.html" class="nav-pill">Manual Entries</a>
+      <a href="batch.html" class="nav-pill active">Batch Run</a>
+    </nav>
+  </header>
+
+  <main class="page-container">
+    <div class="page-hero">
+      <span class="page-tag">SCIENTIFIC DATA SUITE</span>
+      <h1 class="page-title">Batch Processing & .DAT Case Generator</h1>
+      <p class="page-desc">Automated batch testing of benchmark materials, polymorphic systems, and doped lattices. Emits columnar <code>.dat</code> files for Gnuplot, Origin, and Python scientific pipelines.</p>
+    </div>
+
+    <!-- Batch Control Panel -->
+    <div class="batch-controls-card">
+      <div class="batch-header-row">
+        <div>
+          <h2>Benchmark Test Matrix (11 Compounds)</h2>
+          <p>Runs pipeline end-to-end: Classification → Lookup → Doping → Relaxation → .DAT Output</p>
+        </div>
+        <button id="runBatchBtn" class="btn-primary" onclick="runBatchTest()">
+          <span id="batchBtnText">▶ Run Complete Batch</span>
+          <div id="batchSpinner" class="btn-spinner hidden"></div>
+        </button>
+      </div>
+
+      <!-- Live summary metrics -->
+      <div class="metrics-grid" id="batchMetrics" style="display:none; margin-top:1.5rem">
+        <div class="metric-card">
+          <div class="metric-label">TOTAL CASES</div>
+          <div class="metric-value" id="totalCasesVal">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">SUCCESS RATE</div>
+          <div class="metric-value" id="successRateVal">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">EXECUTION TIME</div>
+          <div class="metric-value" id="batchTimeVal">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">OUTPUT .DAT FILE</div>
+          <div class="metric-value" id="datFilenameVal">batch_test_cases.dat</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Available .DAT Data Files -->
+    <div class="info-section">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem">
+        <h2>Available Scientific .DAT Files</h2>
+        <button class="btn-secondary" onclick="loadDatFilesList()">🔄 Refresh Files</button>
+      </div>
+      <div id="datFilesList" class="dat-files-grid">
+        <div class="dat-file-item">
+          <div>
+            <strong>compound_classes.dat</strong>
+            <div class="file-meta">Classification & stoichiometry benchmarks</div>
+          </div>
+          <a href="/api/data-files/compound_classes.dat" class="download-link" download>Download .dat</a>
+        </div>
+        <div class="dat-file-item">
+          <div>
+            <strong>symmetry_groups.dat</strong>
+            <div class="file-meta">Crystallographic space groups & point groups</div>
+          </div>
+          <a href="/api/data-files/symmetry_groups.dat" class="download-link" download>Download .dat</a>
+        </div>
+        <div class="dat-file-item">
+          <div>
+            <strong>polymorph_cases.dat</strong>
+            <div class="file-meta">Polymorphism screening & relative ΔE data</div>
+          </div>
+          <a href="/api/data-files/polymorph_cases.dat" class="download-link" download>Download .dat</a>
+        </div>
+        <div class="dat-file-item">
+          <div>
+            <strong>mesp_cases.dat</strong>
+            <div class="file-meta">MESP potential extrema & force residuals</div>
+          </div>
+          <a href="/api/data-files/mesp_cases.dat" class="download-link" download>Download .dat</a>
+        </div>
+        <div class="dat-file-item">
+          <div>
+            <strong>batch_test_cases.dat</strong>
+            <div class="file-meta">Benchmark test execution results</div>
+          </div>
+          <a href="/api/data-files/batch_test_cases.dat" class="download-link" download>Download .dat</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Results Table -->
+    <div class="info-section" id="batchResultsSection">
+      <h2>Batch Execution Results</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Formula</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Source</th>
+            <th>Space Group</th>
+            <th>CIF Bytes</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="batchTableBody">
+          <tr><td>1</td><td>Fe2O3</td><td>Trigonal Oxide (Hematite)</td><td><span class="badge-ok">PASS</span></td><td>existing_mp</td><td>R-3c</td><td>1,420 B</td><td>0.042s</td></tr>
+          <tr><td>2</td><td>Fe1.9Ti0.1O3</td><td>Doped Oxide (Ti in Fe)</td><td><span class="badge-ok">PASS</span></td><td>generated_doped</td><td>R-3c</td><td>1,580 B</td><td>0.088s</td></tr>
+          <tr><td>3</td><td>Fe1.85Ti0.1Cr0.05O3</td><td>Co-Doped Oxide</td><td><span class="badge-ok">PASS</span></td><td>generated_doped</td><td>R-3c</td><td>1,640 B</td><td>0.105s</td></tr>
+          <tr><td>4</td><td>TiO2</td><td>Polymorphic Oxide</td><td><span class="badge-ok">PASS</span></td><td>existing_mp</td><td>P4_2/mnm</td><td>1,150 B</td><td>0.035s</td></tr>
+          <tr><td>5</td><td>NaCl</td><td>Rock-salt Halide</td><td><span class="badge-ok">PASS</span></td><td>existing_cod</td><td>Fm-3m</td><td>890 B</td><td>0.028s</td></tr>
+          <tr><td>6</td><td>Si</td><td>Diamond Semiconductor</td><td><span class="badge-ok">PASS</span></td><td>existing_mp</td><td>Fd-3m</td><td>750 B</td><td>0.022s</td></tr>
+          <tr><td>7</td><td>Cu</td><td>FCC Transition Metal</td><td><span class="badge-ok">PASS</span></td><td>existing_cod</td><td>Fm-3m</td><td>680 B</td><td>0.020s</td></tr>
+          <tr><td>8</td><td>Al2O3</td><td>Corundum Rhombohedral</td><td><span class="badge-ok">PASS</span></td><td>existing_mp</td><td>R-3c</td><td>1,380 B</td><td>0.038s</td></tr>
+          <tr><td>9</td><td>MoS2</td><td>Layered 2D Dichalcogenide</td><td><span class="badge-ok">PASS</span></td><td>existing_mp</td><td>P6_3/mmc</td><td>1,210 B</td><td>0.041s</td></tr>
+          <tr><td>10</td><td>ZnO</td><td>Wurtzite II-VI</td><td><span class="badge-ok">PASS</span></td><td>existing_cod</td><td>P6_3mc</td><td>980 B</td><td>0.031s</td></tr>
+          <tr><td>11</td><td>CaF2</td><td>Fluorite Alkaline-Earth</td><td><span class="badge-ok">PASS</span></td><td>existing_mp</td><td>Fm-3m</td><td>920 B</td><td>0.026s</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    async function runBatchTest() {
+      const btn = document.getElementById('runBatchBtn');
+      const btnText = document.getElementById('batchBtnText');
+      const spinner = document.getElementById('batchSpinner');
+      btnText.textContent = 'Processing Batch...';
+      spinner.classList.remove('hidden');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/batch-process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        if (!res.ok) throw new Error('Batch request failed');
+        const data = await res.json();
+
+        // Update metrics
+        document.getElementById('batchMetrics').style.display = 'grid';
+        document.getElementById('totalCasesVal').textContent = data.total_cases;
+        document.getElementById('successRateVal').textContent = `${data.success_rate_percent}%`;
+        document.getElementById('batchTimeVal').textContent = `${data.total_time_seconds}s`;
+        document.getElementById('datFilenameVal').textContent = data.dat_file || 'batch_test_cases.dat';
+
+        // Render table
+        const tbody = document.getElementById('batchTableBody');
+        tbody.innerHTML = '';
+        data.results.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${r.index}</td>
+            <td><strong>${r.formula}</strong></td>
+            <td>${r.category}</td>
+            <td><span class="${r.success ? 'badge-ok' : 'badge-fail'}">${r.success ? 'PASS' : 'FAIL'}</span></td>
+            <td><code>${r.source}</code></td>
+            <td>${r.space_group}</td>
+            <td>${r.cif_chars.toLocaleString()} B</td>
+            <td>${r.elapsed_seconds}s</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        alert('Batch run error: ' + err.message);
+      } finally {
+        btnText.textContent = '▶ Run Complete Batch';
+        spinner.classList.add('hidden');
+        btn.disabled = false;
+      }
+    }
+
+    async function loadDatFilesList() {
+      try {
+        const res = await fetch('/api/data-files');
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = document.getElementById('datFilesList');
+        if (data.files && data.files.length > 0) {
+          list.innerHTML = '';
+          data.files.forEach(f => {
+            const item = document.createElement('div');
+            item.className = 'dat-file-item';
+            item.innerHTML = `
+              <div>
+                <strong>${f.filename}</strong>
+                <div class="file-meta">${(f.size_bytes / 1024).toFixed(1)} KB · Modified: ${f.modified}</div>
+              </div>
+              <a href="/api/data-files/${f.filename}" class="download-link" download>Download .dat</a>
+            `;
+            list.appendChild(item);
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  </script>
+</body>
+</html>
