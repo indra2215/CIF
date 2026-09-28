@@ -404,6 +404,7 @@ def _infer_doping_from_stoichiometry(formula: str) -> Optional[Tuple[str, str, s
 def classify_compound(
     query: CompoundQuery,
     ask_user: AskUserFn,
+    recognized_formula: Optional[str] = None,
 ) -> Tuple[bool, Optional[DopingSpec]]:
     """Returns (is_doped, doping_spec_or_None).
     doping_spec is only populated when is_doped=True AND we have (or can get)
@@ -411,6 +412,7 @@ def classify_compound(
     can't/won't supply the missing pieces, doping_spec stays partially filled
     and the orchestrator must ask again at the doping stage.
     """
+    target_formula = recognized_formula or query.raw_input
 
     # --- Pre-normalize the raw input before any classification ---
     raw_normalized = _normalize_formula_input(query.raw_input)
@@ -495,15 +497,15 @@ def classify_compound(
             is_doped = True
         else:
             # --- Level 3: formula-shape heuristic ---
-            has_fraction = _has_fractional_site_occupancy(query.raw_input)
+            has_fraction = _has_fractional_site_occupancy(target_formula)
             if not has_fraction:
                 is_doped = False
-            elif _looks_like_classic_doping_pattern(query.raw_input):
+            elif _looks_like_classic_doping_pattern(target_formula):
                 is_doped = True
             else:
                 # --- Level 4: genuinely ambiguous -> ask the user ---
                 answer = ask_user(
-                    f"'{query.raw_input}' has non-integer stoichiometry, but it's not clear "
+                    f"'{target_formula}' has non-integer stoichiometry, but it's not clear "
                     f"whether this is a doped/substituted compound or a naturally "
                     f"non-stoichiometric (defect) undoped compound. Which is it?",
                     ["Doped (substitutional)", "Non-stoichiometric / undoped", "Not sure - treat as undoped"],
@@ -518,12 +520,12 @@ def classify_compound(
     # This is QA item 4.4: we support primary dopant + co_dopants list, but
     # if the stoichiometry suggests > 1 fractional pair AND there are no co_dopant
     # specs given in the query, warn rather than silently picking the wrong one.
-    n_pairs = _count_fractional_species_pairs(query.raw_input)
+    n_pairs = _count_fractional_species_pairs(target_formula)
     if n_pairs > 1 and not (hasattr(query, "co_dopants") and query.co_dopants):
         # More than one pair of co-occupying species detected in the formula
         # but no co-dopant spec provided. Warn the user.
         answer = ask_user(
-            f"'{query.raw_input}' appears to contain {n_pairs} pairs of co-occupying "
+            f"'{target_formula}' appears to contain {n_pairs} pairs of co-occupying "
             f"species, suggesting multiple dopants on different sites. "
             f"Only one primary dopant is inferred automatically. "
             f"Would you like to proceed with just the primary (largest) dopant substitution, "
@@ -535,7 +537,7 @@ def classify_compound(
 
     # Try automatic stoichiometry inference first if any pieces are missing
     if not (query.host_formula and query.dopant_element and query.host_site_species and query.dopant_fraction is not None):
-        inferred = _infer_doping_from_stoichiometry(query.raw_input)
+        inferred = _infer_doping_from_stoichiometry(target_formula)
         if inferred:
             inf_host, inf_dopant, inf_site, inf_frac = inferred
             if not query.host_formula:

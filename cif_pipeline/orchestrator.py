@@ -16,6 +16,7 @@ import logging
 from typing import Optional
 
 from .models import CompoundQuery, PipelineResult
+from .recognition import recognize_compound_formula
 from .classify import classify_compound
 from .matching import normalize_formula_with_trace
 from .search_external import search_external_databases
@@ -53,6 +54,23 @@ def run_pipeline(
             ),
         )
 
+    # --- Stage 0: Compound Recognition ---
+    # Normalize noise, extract formula from conversational text, resolve algebraic notation,
+    # or expand abbreviations before classification or database searches touch it.
+    recognition = recognize_compound_formula(raw, ask_user)
+    if not recognition.success:
+        return PipelineResult(
+            cif_string=None,
+            source="failed",
+            notes=(
+                f"Could not recognize '{raw}' as a chemical formula: "
+                f"{'; '.join(recognition.warnings)}"
+            ),
+            recognition_result=recognition,
+        )
+    recognized_formula = recognition.resolved_formula
+    log.info(f"[Stage 0 Recognition] '{raw}' -> '{recognized_formula}' (method={recognition.method})")
+
     # Auto-load from .env if not explicitly provided
     if mp_api_key is None:
         mp_api_key = get_mp_api_key()
@@ -62,7 +80,7 @@ def run_pipeline(
     # --- Stage 3 done first conceptually, since it decides how normalization/
     #     search in stages 1-2 should even behave (doped formulas are matched
     #     differently from undoped ones) ---
-    is_doped, doping_spec = classify_compound(query, ask_user)
+    is_doped, doping_spec = classify_compound(query, ask_user, recognized_formula=recognized_formula)
     classification_reasoning = (
         f"is_doped_hint={query.is_doped_hint}" if query.is_doped_hint is not None else
         "resolved via phrasing/formula-shape heuristics (see classify.py)"
@@ -73,12 +91,12 @@ def run_pipeline(
     # display so the user can see exactly what search key was used and why,
     # rather than normalization being an invisible step.
     search_key, normalization_trace = normalize_formula_with_trace(
-        query.raw_input, is_doped, classification_reasoning,
+        recognized_formula, is_doped, classification_reasoning,
     )
 
     # --- Stage 1: external databases ---
     ext_match, ext_candidates = search_external_databases(
-        query.raw_input, is_doped, doping_spec, mp_api_key,
+        recognized_formula, is_doped, doping_spec, mp_api_key,
         query.space_group, ask_user,
     )
     if ext_match:
@@ -89,6 +107,7 @@ def run_pipeline(
             normalization_trace=normalization_trace,
             matched_record=ext_match,
             candidate_matches=ext_candidates,
+            recognition_result=recognition,
         )
     if len(ext_candidates) > 1:
         # Ambiguous polymorphs were found but no choice was resolved (e.g. the
@@ -101,11 +120,12 @@ def run_pipeline(
             notes=f"found {len(ext_candidates)} external candidates but none was selected",
             normalization_trace=normalization_trace,
             candidate_matches=ext_candidates,
+            recognition_result=recognition,
         )
 
     # --- Stage 2: internal database ---
     internal_match, internal_candidates = search_internal_database(
-        query.raw_input, is_doped, doping_spec, query.space_group, ask_user,
+        recognized_formula, is_doped, doping_spec, query.space_group, ask_user,
     )
     if internal_match:
         return PipelineResult(
@@ -115,6 +135,7 @@ def run_pipeline(
             normalization_trace=normalization_trace,
             matched_record=internal_match,
             candidate_matches=internal_candidates,
+            recognition_result=recognition,
         )
     if len(internal_candidates) > 1:
         return PipelineResult(
@@ -123,6 +144,7 @@ def run_pipeline(
             notes=f"found {len(internal_candidates)} internal candidates but none was selected",
             normalization_trace=normalization_trace,
             candidate_matches=internal_candidates,
+            recognition_result=recognition,
         )
 
     log.info("Confirmed: not found in any external or internal database. Proceeding to generation.")
@@ -138,6 +160,7 @@ def run_pipeline(
             ask_user=ask_user,
         )
         result.normalization_trace = normalization_trace
+        result.recognition_result = recognition
         return result
 
     # --- Stage 4b: doped generation ---
@@ -148,6 +171,7 @@ def run_pipeline(
             notes="compound classified as doped but DopingSpec could not be fully resolved "
                   "(missing host formula / site / dopant / fraction).",
             normalization_trace=normalization_trace,
+            recognition_result=recognition,
         )
 
     parent_structure = resolve_parent_structure(
@@ -162,6 +186,7 @@ def run_pipeline(
             source="failed",
             notes=f"could not find or generate parent structure '{doping_spec.host_formula}'",
             normalization_trace=normalization_trace,
+            recognition_result=recognition,
         )
 
     # QA §6.1 (regression guard): wrap apply_doping_with_validation in try/except
@@ -177,6 +202,7 @@ def run_pipeline(
             source="failed",
             notes=f"Doping could not be applied: {doping_err}",
             normalization_trace=normalization_trace,
+            recognition_result=recognition,
         )
     except Exception as doping_err:
         log.error(f"Unexpected error in doping stage: {doping_err}")
@@ -185,6 +211,7 @@ def run_pipeline(
             source="failed",
             notes=f"Unexpected error applying doping: {type(doping_err).__name__}: {doping_err}",
             normalization_trace=normalization_trace,
+            recognition_result=recognition,
         )
 
     if not doped_validation.is_valid:
@@ -195,6 +222,7 @@ def run_pipeline(
                   f"Returning the structure anyway for inspection - do not treat as final.",
             normalization_trace=normalization_trace,
             doped_validation=doped_validation,
+            recognition_result=recognition,
         )
 
     relax_result = relax_with_mace(doped_structure, mace_model_path)
@@ -204,9 +232,10 @@ def run_pipeline(
             cif_string=doped_structure.to(fmt="cif"),
             source="generated_doped",
             notes=f"WARNING: relaxation did not converge (max force {relax_result.max_force:.3f} eV/A). "
-                  f"Returning unrelaxed/partially-relaxed structure - inspect before use.",
+            f"Returning unrelaxed/partially-relaxed structure - inspect before use.",
             normalization_trace=normalization_trace,
             doped_validation=doped_validation,
+            recognition_result=recognition,
         )
 
     return PipelineResult(
@@ -215,4 +244,5 @@ def run_pipeline(
         notes=f"doped structure validated and relaxed successfully (energy={relax_result.energy:.4f} eV)",
         normalization_trace=normalization_trace,
         doped_validation=doped_validation,
+        recognition_result=recognition,
     )

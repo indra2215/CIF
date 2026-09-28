@@ -9,6 +9,20 @@ from pymatgen.core import Structure
 
 
 @dataclass
+class RecognitionResult:
+    """Stage 0 output - whether/how the raw input was successfully turned
+    into a clean, parseable formula before anything else in the pipeline
+    touches it. See recognition.py for the full strategy.
+    """
+    raw_input: str
+    cleaned_input: str
+    resolved_formula: Optional[str]                  # the formula the REST of the pipeline should use, or None if recognition failed
+    method: str                                        # "direct" | "cleaned" | "extracted" | "x_notation" | "abbreviation" | "case_normalized" | "user_corrected" | "failed"
+    success: bool
+    warnings: list = field(default_factory=list)       # every attempt made, in order - full transparency trail
+
+
+@dataclass
 class CompoundQuery:
     """What comes in from the web interface / user."""
     raw_input: str                              # e.g. "La0.7Sr0.3MnO3" or "MnO3 doped with 30% Sr on La site"
@@ -119,3 +133,4 @@ class PipelineResult:
     candidate_matches: list = field(default_factory=list)         # list[SearchMatch] - populated when polymorphs
                                                                     # are ambiguous and awaiting a UI picker choice
     doped_validation: Optional[DopedStructureValidation] = None   # UI-facing: result of the doped-structure check
+    recognition_result: Optional[RecognitionResult] = None        # UI-facing: Stage 0 input recognition & normalization trace

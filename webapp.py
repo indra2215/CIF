@@ -271,8 +271,22 @@ def generate_cif(req: GenerationRequest) -> Dict[str, Any]:
     total_elapsed = round((time.perf_counter() - start_time), 3)
 
     # Build timeline breakdown
+    if getattr(result, "recognition_result", None) and result.recognition_result.success:
+        rr = result.recognition_result
+        timeline.append({
+            "stage": f"Stage 0: Compound Recognition ({rr.method})",
+            "description": f"Recognized '{rr.raw_input}' -> '{rr.resolved_formula}' via {rr.method}",
+            "status": "completed",
+        })
+    else:
+        timeline.append({
+            "stage": "Stage 0: Compound Recognition",
+            "description": f"Processed input formula: '{formula}'",
+            "status": "completed",
+        })
+
     timeline.append({
-        "stage": "Stage 0: Classification & Dopant Parsing",
+        "stage": "Stage 0a: Classification & Dopant Parsing",
         "description": "Determined doped vs undoped; extracted doping spec and host matrix",
         "status": "completed",
     })
@@ -477,6 +491,19 @@ def generate_cif(req: GenerationRequest) -> Dict[str, Any]:
         else:
             retrieved_from = "Parent Lattice Doping Transformation + MACE Relaxation"
 
+    # Serialize recognition result
+    recog_data = None
+    if getattr(result, "recognition_result", None):
+        rr = result.recognition_result
+        recog_data = {
+            "raw_input": rr.raw_input,
+            "cleaned_input": rr.cleaned_input,
+            "resolved_formula": rr.resolved_formula,
+            "method": rr.method,
+            "success": rr.success,
+            "warnings": rr.warnings,
+        }
+
     return {
         "success": result.cif_string is not None,
         "source": result.source,
@@ -491,6 +518,7 @@ def generate_cif(req: GenerationRequest) -> Dict[str, Any]:
         "matched_record": matched,
         "candidate_matches": candidates,
         "normalization_trace": norm_trace,
+        "recognition_result": recog_data,
         "doped_validation": doped_val,
         "diagnostics_history": diagnostics,
     }
