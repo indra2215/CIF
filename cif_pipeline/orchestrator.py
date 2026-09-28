@@ -108,6 +108,11 @@ def run_pipeline(
             matched_record=ext_match,
             candidate_matches=ext_candidates,
             recognition_result=recognition,
+            relaxation_skipped=False,
+            relaxation_status="EXPERIMENTAL (database entry)",
+            final_space_group=ext_match.space_group,
+            diagnostics_history=[],
+            is_reliable=True,
         )
     if len(ext_candidates) > 1:
         # Ambiguous polymorphs were found but no choice was resolved (e.g. the
@@ -224,6 +229,7 @@ def run_pipeline(
             doped_validation=doped_validation,
             recognition_result=recognition,
             is_reliable=False,
+            doping_spec=doping_spec,
         )
 
     relax_result = relax_with_mace(doped_structure, mace_model_path)
@@ -238,12 +244,18 @@ def run_pipeline(
             doped_validation=doped_validation,
             recognition_result=recognition,
             is_reliable=False,
+            doping_spec=doping_spec,
         )
 
-    if getattr(relax_result, "relaxation_skipped", False):
-        notes_str = f"doped structure validated; MACE relaxation was skipped (disordered occupancy preserved)"
+    is_skipped = getattr(relax_result, "relaxation_skipped", False)
+    if is_skipped:
+        notes_str = "doped structure validated; MACE relaxation was skipped (disordered occupancy preserved)"
+        rel_status = "UNKNOWN (disordered solid solution preserved)"
+        is_rel = False
     else:
         notes_str = f"doped structure validated and relaxed successfully (energy={relax_result.energy:.4f} eV)"
+        rel_status = "CONVERGED" if relax_result.converged else "ACTIVE / UNCONVERGED"
+        is_rel = relax_result.converged
 
     return PipelineResult(
         cif_string=relax_result.structure.to(fmt="cif"),
@@ -252,5 +264,11 @@ def run_pipeline(
         normalization_trace=normalization_trace,
         doped_validation=doped_validation,
         recognition_result=recognition,
-        is_reliable=True,
+        is_reliable=is_rel,
+        relaxation_skipped=is_skipped,
+        relaxation_status=rel_status,
+        final_space_group=getattr(relax_result, "final_space_group", None) or "P1",
+        energy=getattr(relax_result, "energy", None) if not is_skipped else None,
+        max_force=getattr(relax_result, "max_force", None) if not is_skipped else None,
+        doping_spec=doping_spec,
     )

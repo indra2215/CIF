@@ -56,9 +56,8 @@ _HYDRATE_SEPARATOR_RE = re.compile(r"[·•*·\u00B7\u2022\u00b7]")
 # --- Formula-substring extraction from a longer sentence -------------------
 _FORMULA_TOKEN_RUN_RE = re.compile(r"(?:[A-Z][a-z]?\d*(?:\.\d+)?){2,}")
 
-# --- "1-x / x=" algebraic doping notation -----------------------------------
 _X_NOTATION_PATTERN_RE = re.compile(
-    r"(?P<host>[A-Z][a-z]?)\(?1\s*[-−]\s*x\)?(?P<dopant>[A-Z][a-z]?)x",
+    r"(?P<host>[A-Z][a-z]?)\s*\(?\s*1\s*[-−]\s*x\s*\)?\s*(?P<dopant>[A-Z][a-z]?)\s*(?:\(\s*x\s*\)|x)",
     re.IGNORECASE,
 )
 _X_VALUE_RE = re.compile(r"\bx\s*=\s*(?P<value>\d*\.?\d+)\b", re.IGNORECASE)
@@ -83,6 +82,18 @@ COMMON_ABBREVIATIONS = {
     "LAO": "LaAlO3",
 }
 
+# Explicit molecular mappings (F8: prevents casing heuristic from turning co2 into Co2)
+EXPLICIT_MOLECULAR_MAPPINGS = {
+    "CO2": "CO2",
+    "CO": "CO",
+    "NO2": "NO2",
+    "SO2": "SO2",
+    "SO3": "SO3",
+    "H2O": "H2O",
+}
+
+_HYDRATE_DOT_CLEAN_RE = re.compile(r"[\.·•*·\u00B7\u2022\u00b7]\s*\d*\.?\d*\s*H2O\b", re.IGNORECASE)
+
 
 def clean_formula_text(text: str) -> str:
     """Safe formatting normalization applied to any formula string.
@@ -94,6 +105,7 @@ def clean_formula_text(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
     text = text.translate(_UNICODE_DIGIT_TRANSLATION)
     text = _STATE_ANNOTATION_RE.sub("", text)
+    text = _HYDRATE_DOT_CLEAN_RE.sub("", text).strip()
     text = _HYDRATE_SEPARATOR_RE.sub(".", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
@@ -142,6 +154,7 @@ def resolve_x_notation(text: str) -> Optional[str]:
         f"{host}{host_frac:g}{dopant}{x:g}", text, count=1
     )
     replaced = _X_VALUE_RE.sub("", replaced)
+    replaced = re.sub(r"\bwith\b", "", replaced, flags=re.IGNORECASE)
     replaced = re.sub(r",\s*$", "", replaced).strip().rstrip(",").strip()
     replaced = re.sub(r"\s+", "", replaced)
     return replaced if _try_parse(replaced) else None
@@ -191,6 +204,30 @@ def recognize_compound_formula(
             success=False,
             warnings=["empty input provided"],
         )
+
+    # 0. Explicit molecular mapping table (F8: prevents 'co2' from becoming cobalt dimer 'Co2')
+    upper_key = raw_input.strip().upper()
+    if upper_key in EXPLICIT_MOLECULAR_MAPPINGS:
+        canonical = EXPLICIT_MOLECULAR_MAPPINGS[upper_key]
+        if raw_input.strip() == canonical:
+            return RecognitionResult(
+                raw_input=raw_input,
+                cleaned_input=raw_input,
+                resolved_formula=canonical,
+                method="direct",
+                success=True,
+                warnings=warnings,
+            )
+        else:
+            warnings.append(f"resolved via explicit molecular mapping table: '{raw_input}' -> '{canonical}'")
+            return RecognitionResult(
+                raw_input=raw_input,
+                cleaned_input=raw_input,
+                resolved_formula=canonical,
+                method="explicit_molecular_mapping",
+                success=True,
+                warnings=warnings,
+            )
 
     # 1. Abbreviation lookup (checked FIRST so abbreviations like LSMO, YBCO aren't misparsed as dummy elements)
     abbrev_resolved = lookup_abbreviation(raw_input)

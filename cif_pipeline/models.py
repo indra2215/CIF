@@ -136,3 +136,9 @@ class PipelineResult:
     doped_validation: Optional[DopedStructureValidation] = None   # UI-facing: result of the doped-structure check
     recognition_result: Optional[RecognitionResult] = None        # UI-facing: Stage 0 input recognition & normalization trace
     is_reliable: bool = True                                       # False when we returned a structure flagged as unrelaxed/untrustworthy
+    relaxation_skipped: bool = False
+    relaxation_status: Optional[str] = None
+    final_space_group: Optional[str] = None
+    energy: Optional[float] = None
+    max_force: Optional[float] = None
+    doping_spec: Optional[DopingSpec] = None

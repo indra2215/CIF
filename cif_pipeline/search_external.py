@@ -95,10 +95,11 @@ def _query_materials_project(formula: str, api_key: str) -> List[SearchMatch]:
         stripped = formula.strip()
         with MPRester(api_key) as mpr:
             summary_api = getattr(getattr(mpr, "materials", None), "summary", getattr(mpr, "summary", None))
+            fields = ["material_id", "structure", "symmetry", "formula_pretty", "formation_energy_per_atom", "energy_above_hull"]
             if stripped.lower().startswith("mp-") or stripped.lower().startswith("mvc-"):
-                docs = summary_api.search(material_ids=[stripped])
+                docs = summary_api.search(material_ids=[stripped], fields=fields)
             else:
-                docs = summary_api.search(formula=stripped)
+                docs = summary_api.search(formula=stripped, fields=fields)
 
             for doc in docs:
                 sg = None
@@ -284,7 +285,7 @@ def _query_cod(formula: str) -> List[SearchMatch]:
     Only fetches up to MAX_COD_CANDIDATES CIFs per query to avoid hammering
     COD's server or blocking the pipeline on a high-hit-count text match.
     """
-    MAX_COD_CANDIDATES = 20  # cap CIF fetches per query for rate-limiting sanity
+    MAX_COD_CANDIDATES = 6  # cap CIF fetches per query for rate-limiting sanity
 
     try:
         stripped = formula.strip()
@@ -305,7 +306,7 @@ def _query_cod(formula: str) -> List[SearchMatch]:
             resp = requests.get(
                 "https://www.crystallography.net/cod/result",
                 params={"id": direct_cod_id, "format": "csv"},
-                timeout=20,
+                timeout=6,
             )
             resp.raise_for_status()
             clean_lines = [line for line in resp.text.splitlines() if not line.strip().startswith("#")]
@@ -328,7 +329,7 @@ def _query_cod(formula: str) -> List[SearchMatch]:
                     resp_hill = requests.get(
                         "https://www.crystallography.net/cod/result",
                         params={"formula": hill_str, "format": "csv"},
-                        timeout=20,
+                        timeout=6,
                     )
                     if resp_hill.status_code == 200:
                         clean_lines = [line for line in resp_hill.text.splitlines() if not line.strip().startswith("#")]
@@ -346,7 +347,7 @@ def _query_cod(formula: str) -> List[SearchMatch]:
                 resp_text = requests.get(
                     "https://www.crystallography.net/cod/result",
                     params={"text": formula, "format": "csv"},
-                    timeout=20,
+                    timeout=6,
                 )
                 if resp_text.status_code == 200:
                     clean_lines = [line for line in resp_text.text.splitlines() if not line.strip().startswith("#")]
@@ -395,7 +396,7 @@ def _query_cod(formula: str) -> List[SearchMatch]:
             try:
                 cif_resp = requests.get(
                     f"https://www.crystallography.net/cod/{cod_id}.cif",
-                    timeout=15,
+                    timeout=6,
                 )
                 if cif_resp.status_code != 200:
                     continue

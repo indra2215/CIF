@@ -294,24 +294,35 @@ def disambiguate_polymorphs(
         # Same formula, same (or unknown) space group across all hits -> treat as one match.
         return matches[0], matches
 
-    # Genuinely different polymorphs, no space group specified.
-    # Per policy: surface ALL distinct candidates (never silently narrow to
-    # "some"), capped only for single-screen readability, with the total count
-    # always visible and the full list always returned to the caller.
-    shown = matches[:MAX_POLYMORPHS_SHOWN_AT_ONCE]
+    # Stability-order sorting: sort candidates so the most stable (lowest energy_above_hull,
+    # then lowest formation_energy_per_atom) is first.
+    def _stability_key(m: SearchMatch):
+        ehull = (m.extra or {}).get("energy_above_hull")
+        eform = (m.extra or {}).get("formation_energy_per_atom")
+        k_ehull = float(ehull) if ehull is not None else 1.0
+        k_eform = float(eform) if eform is not None else 0.0
+        return (k_ehull, k_eform)
+
+    sorted_matches = sorted(matches, key=_stability_key)
+    shown = sorted_matches[:MAX_POLYMORPHS_SHOWN_AT_ONCE]
     options = [f"{m.source} / {m.record_id} (space group: {m.space_group or 'unknown'})" for m in shown]
     options.append("None of these - generate a new structure instead")
     more_note = (
-        f" Showing the first {len(shown)} of {len(matches)} - more are available."
-        if len(matches) > len(shown) else ""
+        f" Showing the first {len(shown)} of {len(sorted_matches)} - more are available."
+        if len(sorted_matches) > len(shown) else ""
     )
     choice = ask_user(
-        f"Found {len(matches)} structurally distinct entries for this formula "
+        f"Found {len(sorted_matches)} structurally distinct entries for this formula "
         f"(different polymorphs).{more_note} Which one matches what you need?",
         options,
     )
     from .user_interaction import pick_option_index
     idx = pick_option_index(choice, options)
-    if idx is None or idx == len(options) - 1 or idx >= len(shown):
-        return None, matches
-    return shown[idx], matches
+    if idx is None:
+        # Non-interactive mode (web API or batch) where user didn't specify choice upfront:
+        # Default to the most stable ground-state polymorph (sorted_matches[0]),
+        # while preserving ALL candidates in sorted_matches for the UI/caller to inspect and select.
+        return sorted_matches[0], sorted_matches
+    if idx == len(options) - 1 or idx >= len(shown):
+        return None, sorted_matches
+    return shown[idx], sorted_matches

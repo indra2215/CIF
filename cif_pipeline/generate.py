@@ -436,6 +436,12 @@ def generate_with_feedback_loop(
                 + (f"; other space groups also found among converged candidates: {alt_groups}" if alt_groups else "")
             ),
             diagnostics_history=diagnostics_history,
+            relaxation_skipped=False,
+            relaxation_status="CONVERGED",
+            final_space_group=best.final_space_group,
+            energy=best.energy,
+            max_force=best.max_force,
+            is_reliable=True,
         )
 
     return PipelineResult(

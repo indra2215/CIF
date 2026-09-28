@@ -43,6 +43,9 @@ def resolve_parent_structure(
     if match:
         log.info(f"Parent '{spec.host_formula}' found in {match.source} ({match.record_id})")
         return match.structure
+    elif _all_ext:
+        log.info(f"Parent '{spec.host_formula}' has {len(_all_ext)} candidate polymorphs; selecting top candidate {_all_ext[0].record_id} ({_all_ext[0].space_group})")
+        return _all_ext[0].structure
 
     match, _all_int = search_internal_database(
         spec.host_formula, is_doped=False, doping_spec=None,
@@ -51,6 +54,9 @@ def resolve_parent_structure(
     if match:
         log.info(f"Parent '{spec.host_formula}' found internally ({match.record_id})")
         return match.structure
+    elif _all_int:
+        log.info(f"Parent '{spec.host_formula}' has {len(_all_int)} internal candidate polymorphs; selecting top candidate {_all_int[0].record_id}")
+        return _all_int[0].structure
 
     log.info(f"Parent '{spec.host_formula}' not found anywhere - generating it first")
     result = generate_with_feedback_loop(
